@@ -11,10 +11,40 @@ defineModule(sim, list(
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
-  documentation = list("README.md", "LandWeb_summary.Rmd"), ## same file
-  reqdPkgs = list("PredictiveEcology/SpaDES.core@development (>=1.1.0)", "ggplot2"),
+  documentation = list("README.md", "LandWeb_summary.Rmd"), ## README generated from module Rmd
+  reqdPkgs = list("data.table", "future", "ggplot2", "googldrive", "purrr", "raster", "sp",
+                  "PredictiveEcology/LandR@development",
+                  "PredictiveEcology/LandWebUtils@development",
+                  "PredictiveEcology/map (>= 0.0.3.9004)",
+                  "PredictiveEcology/reproducible@development (>= 1.2.10)",
+                  "PredictiveEcology/SpaDES.core@development (>= 1.1.0.9000)"),
   parameters = bindrows(
-    #defineParameter("paramName", "paramClass", value, min, max, "parameter description"),
+    defineParameter("ageClasses", "character", LandWebUtils:::.ageClasses, NA, NA,
+                    "descriptions/labels for age classes (seral stages)"),
+    defineParameter("ageClassCutOffs", "integer", LandWebUtils:::.ageClassCutOffs, NA, NA,
+                    "defines the age boundaries between age classes"),
+    defineParameter("ageClassMaxAge", "integer", 400L, NA, NA,
+                    "maximum possible age"),
+    defineParameter("reps", "integer", 1:10, 1, NA,
+                    paste("number of replicates/runs per study area and climate scenario.",
+                          "NOTE: `mclapply` is used internally, so you should set",
+                          "`options(mc.cores = nReps)` to run in parallel.")), ## TODO: use .useParallel mechanism
+    defineParameter("simOutputPath", "character", outputPath(sim), NA, NA,
+                    "Directory specifying the location of the simulation outputs."),
+    defineParameter("sppEquivCol", "character", "EN_generic_short", NA, NA,
+                    "The column in `sim$sppEquiv` data.table to use as a naming convention"),
+    defineParameter("summaryInterval", "integer", 100L, NA, NA,
+                    "simulation time interval at which to take 'snapshots' used for summary analyses"),
+    defineParameter("summaryPeriod", "integer", c(700L, 1000L), NA, NA,
+                    "lower and upper end of the range of simulation times used for summary analyses"),
+    defineParameter("timeSeriesTimes", "integer", 601L:650L, NA, NA,
+                    "timesteps to use to build timeseries rasters showing leading cover change over time"),
+    defineParameter("upload", "logical", FALSE, NA, NA,
+                    "if TRUE, uses the `googledrive` package to upload figures."),
+    defineParameter("uploadTo", "character", NA, NA, NA,
+                    paste("if `upload = TRUE`, a Google Drive folder id corresponding to `.studyAreaName`.")),
+    defineParameter("vegLeadingProportion", "numeric", 0.8, 0.0, 1.0,
+                    "a number that defines whether a species is leading for a given pixel"),
     defineParameter(".plots", "character", "screen", NA, NA,
                     "Used by Plots function, which can be optionally used here"),
     defineParameter(".plotInitialTime", "numeric", start(sim), NA, NA,
@@ -28,15 +58,16 @@ defineModule(sim, list(
     defineParameter(".studyAreaName", "character", NA, NA, NA,
                     "Human-readable name for the study area used - e.g., a hash of the study",
                           "area obtained using `reproducible::studyAreaName()`"),
-    ## .seed is optional: `list('init' = 123)` will `set.seed(123)` for the `init` event only.
-    defineParameter(".seed", "list", list(), NA, NA,
-                    "Named list of seeds to use for each event (names)."),
     defineParameter(".useCache", "logical", FALSE, NA, NA,
-                    "Should caching of events or module be used?")
+                    "Should caching of events or module be used?"),
+    defineParameter(".useParallel", "logical", getOption("map.useParallel", FALSE), NA, NA,
+                    desc = paste("Logical. If `TRUE`, and there is more than one calculation to do at any stage,",
+                                 "it will create and use a parallel cluster via `makeOptimalCluster()`."))
   ),
   inputObjects = bindrows(
-    #expectsInput("objectName", "objectClass", "input object description", sourceURL, ...),
-    expectsInput(objectName = NA, objectClass = NA, desc = NA, sourceURL = NA)
+    expectsInput("rasterToMatch", "RasterLayer", "DESCRIPTION NEEDED", sourceURL = NA),
+    expectsInput("sppEquiv", "data.table",
+                 desc = "table of species equivalencies. See `LandR::sppEquivalencies_CA`.")
   ),
   outputObjects = bindrows(
     #createsOutput("objectName", "objectClass", "output object description", ...),
@@ -91,13 +122,18 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
       # ! ----- EDIT BELOW ----- ! #
       # do stuff for this event
 
-      # e.g., call your custom functions/methods here
-      # you can define your own methods below this `doEvent` function
+      ## TODO: see e.g. LandR::plotLeadingSpecies()
+      files2upload <- aFunThatReturnsFileNamesOfPlotsEtc(
+            studyAreaName = P(sim)$.studyAreaName,
+            Nreps = P(sim)$reps,
+            outputDir = P(sim)$simOutputPath,
+            sppEquiv = sim$sppEquiv,
+            leadingPercentage = P(sim)$vegLeadingProportion,
+            rasterToMatch = sim$rasterToMatch
+      )
+      files2upload <- unlist(files2upload, recursive = TRUE) ## TODO
 
-      # schedule future event(s)
-
-      # e.g.,
-      # sim <- scheduleEvent(sim, time(sim) + increment, "LandWeb_summary", "templateEvent")
+      mod$files2upload <- c(mod$files2upload, files2upload)
 
       # ! ----- STOP EDITING ----- ! #
     },
@@ -115,6 +151,16 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
 
       # ! ----- STOP EDITING ----- ! #
     },
+    upload = {
+      # ! ----- EDIT BELOW ----- ! #
+      mod$files2upload <- set_names(mod$files2upload, basename(mod$files2upload))
+
+      gid <- as_id(sim$uploadTo[[P(sim)$studyAreaName]])
+      prevUploaded <- drive_ls(gid)
+      toUpload <- mod$files2upload[!(basename(mod$files2upload) %in% prevUploaded$name)]
+      uploaded <- map(toUpload, ~ drive_upload(.x, path = gid))
+      # ! ----- STOP EDITING ----- ! #
+    },
     warning(paste("Undefined event type: \'", current(sim)[1, "eventType", with = FALSE],
                   "\' in module \'", current(sim)[1, "moduleName", with = FALSE], "\'", sep = ""))
   )
@@ -127,6 +173,26 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
 ### template initialization
 Init <- function(sim) {
   # # ! ----- EDIT BELOW ----- ! #
+
+  ## TODO: inventory all files to ensure correct dir structure? compare against expected files?
+  #filesUserHas <- fs::dir_ls(P(sim)$simOutputPath, recurse = TRUE, type = "file", glob = "*.qs")
+
+  ## TODO: update below for LandWeb
+  filesUserExpects <- rbindlist(lapply(P(sim)$studyAreaNames, function(studyAreaName) {
+    rbindlist(lapply(P(sim)$climateScenarios, function(climateScenario) {
+      rbindlist(lapply(P(sim)$reps, function(rep) {
+        runName <- sprintf("%s_%s_run%02d", studyAreaName, climateScenario, as.integer(rep))
+        f <- file.path(P(sim)$simOutputPath, runName, paste0(runName, ".qs"))
+
+        data.table(file = f, exists = file.exists(f))
+      }))
+    }))
+  }))
+
+  if (!all(filesUserExpects$exists)) {
+    missing <- filesUserExpects[exists == FALSE, ]$file
+    stop("Some simulation files missing:\n", paste(missing, collapse = "\n"))
+  }
 
   # ! ----- STOP EDITING ----- ! #
 
@@ -154,56 +220,26 @@ plotFun <- function(sim) {
   return(invisible(sim))
 }
 
-### template for your event1
-Event1 <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-  # THE NEXT TWO LINES ARE FOR DUMMY UNIT TESTS; CHANGE OR DELETE THEM.
-  # sim$event1Test1 <- " this is test for event 1. " # for dummy unit test
-  # sim$event1Test2 <- 999 # for dummy unit test
-
-  # ! ----- STOP EDITING ----- ! #
-  return(invisible(sim))
-}
-
-### template for your event2
-Event2 <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-  # THE NEXT TWO LINES ARE FOR DUMMY UNIT TESTS; CHANGE OR DELETE THEM.
-  # sim$event2Test1 <- " this is test for event 2. " # for dummy unit test
-  # sim$event2Test2 <- 777  # for dummy unit test
-
-  # ! ----- STOP EDITING ----- ! #
-  return(invisible(sim))
-}
 
 .inputObjects <- function(sim) {
-  # Any code written here will be run during the simInit for the purpose of creating
-  # any objects required by this module and identified in the inputObjects element of defineModule.
-  # This is useful if there is something required before simulation to produce the module
-  # object dependencies, including such things as downloading default datasets, e.g.,
-  # downloadData("LCC2005", modulePath(sim)).
-  # Nothing should be created here that does not create a named object in inputObjects.
-  # Any other initiation procedures should be put in "init" eventType of the doEvent function.
-  # Note: the module developer can check if an object is 'suppliedElsewhere' to
-  # selectively skip unnecessary steps because the user has provided those inputObjects in the
-  # simInit call, or another module will supply or has supplied it. e.g.,
-  # if (!suppliedElsewhere('defaultColor', sim)) {
-  #   sim$map <- Cache(prepInputs, extractURL('map')) # download, extract, load file from url in sourceURL
-  # }
-
-  #cacheTags <- c(currentModule(sim), "function:.inputObjects") ## uncomment this if Cache is being used
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
   # ! ----- EDIT BELOW ----- ! #
 
+  tmp <- loadSimList(file.path("outputs", runNamePostProcessing,
+                               paste0("simOutPreamble_", studyAreaName, ".qs"))) ## TODO: update for landweb
+
+  if (!suppliedElsewhere("rasterToMatch", sim)) {
+    sim$rasterToMatch <- tmp$rasterToMatchReporting
+  }
+
+  if (!suppliedElsewhere("sppEquiv", sim)) {
+    sim$sppEquiv <- tmp$sppEquiv
+  }
+
+  rm(tmp)
+
   # ! ----- STOP EDITING ----- ! #
   return(invisible(sim))
 }
-
-ggplotFn <- function(data, ...) {
-  ggplot(data, aes(TheSample)) +
-    geom_histogram(...)
-}
-
-### add additional events as needed by copy/pasting from above
