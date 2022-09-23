@@ -91,6 +91,17 @@ knitr::kable(df_params, caption = "List of (ref:LandWeb-summary) parameters and 
 
 ### Module outputs
 
+#### Large Patches Data for study region
+
+- Large Patches Data (`.csv`)
+- Large patches histograms (`.png`)
+
+#### Leading Vegetation Cover Data for study region
+
+- Leading Vegetation Cover Data (`.csv`)
+- Leading Vegetation Cover histograms (`.png`)
+- Leading Vegetation Cover boxplots (`.png`)
+
 Description of the module outputs (Table \@ref(tab:moduleOutputs-LandWeb-summary)).
 
 ```{r moduleOutputs-LandWeb-summary, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}

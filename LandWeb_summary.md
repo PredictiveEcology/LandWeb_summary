@@ -159,6 +159,17 @@ Provide a summary of user-visible parameters (Table \@ref(tab:moduleParams-LandW
 
 ### Module outputs
 
+#### Large Patches Data for study region
+
+- Large Patches Data (`.csv`)
+- Large patches histograms (`.png`)
+
+#### Leading Vegetation Cover Data for study region
+
+- Leading Vegetation Cover Data (`.csv`)
+- Leading Vegetation Cover histograms (`.png`)
+- Leading Vegetation Cover boxplots (`.png`)
+
 Description of the module outputs (Table \@ref(tab:moduleOutputs-LandWeb-summary)).
 
 <table class="table" style="margin-left: auto; margin-right: auto;">
