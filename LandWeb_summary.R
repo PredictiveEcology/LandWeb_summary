@@ -25,7 +25,7 @@ defineModule(sim, list(
                     "defines the age boundaries between age classes"),
     defineParameter("ageClassMaxAge", "integer", 400L, NA, NA,
                     "maximum possible age"),
-    defineParameter("reps", "integer", 1:10, 1, NA,
+    defineParameter("reps", "integer", 1L:10L, 1, NA,
                     paste("number of replicates/runs per study area and climate scenario.",
                           "NOTE: `mclapply` is used internally, so you should set",
                           "`options(mc.cores = nReps)` to run in parallel.")), ## TODO: use .useParallel mechanism
