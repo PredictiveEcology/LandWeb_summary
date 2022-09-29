@@ -15,15 +15,18 @@ Require(c("LandWebUtils", "map"))
 padL <- if (config.get(config, "version") == 2 && ## version set in default config
             grepl(paste("BlueRidge", "Edson", "FMANWT_", "LP_BC", "MillarWestern", "Mistik",
                         "prov", "Sundre", "Vanderwell", "WestFraser", "WeyCo", sep = "|"),
-            config.get(config, c("runInfo", "runName")))) {
-  if (grepl("provMB", config.get(config, c("runInfo", "runName")))) 4 else 3
+            context$runName)) {
+  if (grepl("provMB", context$runName)) 4 else 3
 } else {
   4
 } ## TODO: confirm this is always true now
 
-if (grepl("Manning", config.get(config, c("runInfo", "runName")))) {
+if (grepl("Manning", context$runName)) {
   config$params$timeSeriesTimes <- 450:500
 }
+
+analysesOutputsTimes <- seq(config$params$summaryPeriod[1], config$params$summaryPeriod[2],
+                            by = config$params$summaryInterval)
 
 #allouts <- unlist(lapply(mySimOuts, function(sim) outputs(sim)$file))
 allouts <- dir(Paths$outputPath, full.names = TRUE, recursive = TRUE)
@@ -37,12 +40,12 @@ layerName <- gsub(allouts2, pattern = paste0(".*", Paths$outputPath), replacemen
 layerName <- gsub(layerName, pattern = "[/\\]", replacement = "_")
 layerName <- gsub(layerName, pattern = "^_", replacement = "")
 ag1 <- gsub(layerName, pattern = "(.*)_.*_(.*)\\..*", replacement = "\\1_\\2") %>%
-  grep(paste(config.get(config, c("params", "analysesOutputsTimes")), collapse = "|"), ., value = TRUE)
+  grep(paste(analysesOutputsTimes, collapse = "|"), ., value = TRUE)
 destinationPath <- dirname(allouts2)
 tsf <- gsub(".*vegTypeMap.*", NA, allouts2) %>%
-  grep(paste(config.get(config, c("params", "analysesOutputsTimes")), collapse = "|"), ., value = TRUE)
+  grep(paste(analysesOutputsTimes, collapse = "|"), ., value = TRUE)
 vtm <- gsub(".*TimeSinceFire.*", NA, allouts2) %>%
-  grep(paste(config.get(config, c("params", "analysesOutputsTimes")), collapse = "|"), ., value = TRUE)
+  grep(paste(analysesOutputsTimes, collapse = "|"), ., value = TRUE)
 
 if (FALSE) {
   ### manually identify any corrupted tsf/vtm files
@@ -242,7 +245,7 @@ qs::qsave(ml, fml[[1]])
 #ml <- qs::qload(fml[[1]])
 
 options(map.useParallel = FALSE)
-#if (grepl("LandWeb", config.get(config, c("runInfo", "runName")))) options(map.maxNumCores = parallel::detectCores() / 8)
+#if (grepl("LandWeb", context$runName)) options(map.maxNumCores = parallel::detectCores() / 8)
 ml <- mapAddAnalysis(ml, functionName = "LeadingVegTypeByAgeClass",
                      #purgeAnalyses = "LeadingVegTypeByAgeClass",
                      ageClasses = ageClasses, ageClassCutOffs = ageClassCutOffs,
@@ -256,7 +259,7 @@ qs::qsave(ml, fml[[2]])
 #    This will trigger 2 more analyses ... largePatches on each raster x polygon combo
 #    so there is 1 raster group, 2 polygon groups, 2 analyses - Total 4, only 2 run now
 options(map.useParallel = FALSE)
-#if (grepl("LandWeb", config.get(config, c("runInfo", "runName")))) options(map.maxNumCores = parallel::detectCores() / 8)
+#if (grepl("LandWeb", context$runName)) options(map.maxNumCores = parallel::detectCores() / 8)
 ml <- mapAddAnalysis(ml, functionName = "LargePatches",
                      id = "1", labelColumn = "shinyLabel",
                      #purgeAnalyses = "LargePatches",
@@ -306,12 +309,12 @@ qs::qsave(ml, fml[[4]])
 ## TODO: archive and upload
 #source("R/upload.R") ## TODO: not working correctly yet
 
-message(crayon::red(config.get(config, c("runInfo", "runName"))))
+message(crayon::red(context$runName))
 
 if (requireNamespace("slackr") & file.exists("~/.slackr")) {
   slackr::slackr_setup()
   slackr::slackr_msg(
-    paste0("Post-processing for `", config.get(config, c("runInfo", "runName")), "` completed on host `", Sys.info()[["nodename"]], "`."),
+    paste0("Post-processing for `", context$runName, "` completed on host `", Sys.info()[["nodename"]], "`."),
     channel = config::get("slackchannel"), preformatted = FALSE
   )
 }
