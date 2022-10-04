@@ -12,7 +12,8 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.md", "LandWeb_summary.Rmd"), ## README generated from module Rmd
-  reqdPkgs = list("data.table", "future", "ggplot2", "googldrive", "purrr", "raster", "sp",
+  reqdPkgs = list("animation", "data.table", "future", "ggplot2", "googledrive", "purrr", "qs", "raster", "sp",
+                  "achubaty/amc@development",
                   "PredictiveEcology/LandR@development",
                   "PredictiveEcology/LandWebUtils@development",
                   "PredictiveEcology/map (>= 0.0.3.9004)",
@@ -26,9 +27,7 @@ defineModule(sim, list(
     defineParameter("ageClassMaxAge", "integer", 400L, NA, NA,
                     "maximum possible age"),
     defineParameter("reps", "integer", 1L:10L, 1, NA,
-                    paste("number of replicates/runs per study area and climate scenario.",
-                          "NOTE: `mclapply` is used internally, so you should set",
-                          "`options(mc.cores = nReps)` to run in parallel.")), ## TODO: use .useParallel mechanism
+                    paste("number of replicates/runs per study area.")),
     defineParameter("simOutputPath", "character", outputPath(sim), NA, NA,
                     "Directory specifying the location of the simulation outputs."),
     defineParameter("sppEquivCol", "character", "EN_generic_short", NA, NA,
@@ -45,6 +44,8 @@ defineModule(sim, list(
                     paste("if `upload = TRUE`, a Google Drive folder id corresponding to `.studyAreaName`.")),
     defineParameter("vegLeadingProportion", "numeric", 0.8, 0.0, 1.0,
                     "a number that defines whether a species is leading for a given pixel"),
+    defineParameter("version", "integer", 3L, 2L, 3L,
+                    "LandWeb model version (2 for runs using vegetation parameter forcings, else 3)."),
     defineParameter(".plots", "character", "screen", NA, NA,
                     "Used by Plots function, which can be optionally used here"),
     defineParameter(".plotInitialTime", "numeric", start(sim), NA, NA,
@@ -65,13 +66,17 @@ defineModule(sim, list(
                                  "it will create and use a parallel cluster via `makeOptimalCluster()`."))
   ),
   inputObjects = bindrows(
-    expectsInput("rasterToMatch", "RasterLayer", "DESCRIPTION NEEDED", sourceURL = NA),
-    expectsInput("sppEquiv", "data.table",
+    expectsInput("ml", "map",
+                 desc = "map list object from LandWeb_preamble"),
+    expectsInput("sppColorVect", "character",
+                 desc = paste("A named vector of colors to use for plotting.",
+                              "The names must be in `sim$sppEquiv[[P(sim)$sppEquivCol]]`,",
+                              "and should also contain a color for 'Mixed'")),
+    expectsInput("sppEquiv", "data.table", NA, NA, NA,
                  desc = "table of species equivalencies. See `LandR::sppEquivalencies_CA`.")
   ),
   outputObjects = bindrows(
-    #createsOutput("objectName", "objectClass", "output object description", ...),
-    createsOutput(objectName = NA, objectClass = NA, desc = NA)
+    createsOutput("ml", "map", "map list object"),
   )
 ))
 
@@ -82,77 +87,71 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
   switch(
     eventType,
     init = {
-      ### check for more detailed object dependencies:
-      ### (use `checkObject` or similar)
-
-      # do stuff for this event
       sim <- Init(sim)
 
-      # schedule future event(s)
-      sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "LandWeb_summary", "plot")
-      sim <- scheduleEvent(sim, P(sim)$.saveInitialTime, "LandWeb_summary", "save")
+      if (FALSE) {
+        sim <- scheduleEvent(sim, start(sim), "LandWeb_summary", "animation") ## TODO: skip for now -- use future!!!!
+      }
+
+      sim <- scheduleEvent(sim, start(sim), "LandWeb_summary", "postprocess")
+
+      if (isTRUE(P(sim)$upload)) {
+        sim <- scheduleEvent(sim, end(sim), "LandWeb_summary", "upload", .last())
+      }
     },
-    plot = {
+    animation = {
+      ## create vtm and tsf stacks for animation
+
+      if (isFALSE(isRstudio())) {
+        Require("future")
+        options("future.availableCores.custom" = function() { min(getOption("Ncpus"), 4) })
+        future::plan("multiprocess")
+      }
+
+      tsfTimeSeries <- gsub(".*vegTypeMap.*", NA, mod$allouts) %>%
+        grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
+      vtmTimeSeries <- gsub(".*TimeSinceFire.*", NA, mod$allouts) %>%
+        grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
+
+      if (length(tsfTimeSeries)) {
+        sA <- studyArea(sim$ml, 2)
+        gifName <- file.path(normPath(outputPath(sim)), "animation_tsf.gif")
+        future({
+          tsfStack <- raster::stack(tsfTimeSeries)# %>% writeRaster(file.path(outputPath(sim), "stack_tsf.tif"))
+          animation::saveGIF(ani.height = 1200, ani.width = 1200, interval = 1.0,
+                             movie.name = gifName, expr = {
+                               brks <- c(0, 1, 40, 80, 120, 1000)
+                               cols <- RColorBrewer::brewer.pal(5, "RdYlGn")
+                               for (i in seq(numLayers(tsfStack))) {
+                                 plot(raster::mask(tsfStack[[i]], sA), breaks = brks, col = cols)
+                               }
+                             })
+        })
+        rm(tsfStack)
+
+        #if (length(vtmTimeSeries)) {
+        #  vtmStack <- raster::stack(vtmTimeSeries)# %>% writeRaster(file.path(outputPath(sim), "stack_vtm.tif"))
+        #  gifName <- file.path(normPath(outputPath(sim)), "animation_vtm.gif")
+        #  animation::saveGIF(ani.height = 1200, ani.width = 1200, interval = 1.0,
+        #                     movie.name = gifName, expr = {
+        #                       for (i in seq(numLayers(vtmStack)))
+        #                         plot(mask(vtmStack[[i]], studyArea(sim$ml, 2))) # TODO: this animation isn't great!
+        #  })
+        #  rm(vtmStack)
+        #}
+      }
+    },
+    postprocess = {
       # ! ----- EDIT BELOW ----- ! #
       # do stuff for this event
 
-      plotFun(sim) # example of a plotting function
-      # schedule future event(s)
-
-      # e.g.,
-      #sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotInterval, "LandWeb_summary", "plot")
-
-      # ! ----- STOP EDITING ----- ! #
-    },
-    save = {
-      # ! ----- EDIT BELOW ----- ! #
-      # do stuff for this event
-
-      # e.g., call your custom functions/methods here
-      # you can define your own methods below this `doEvent` function
-
-      # schedule future event(s)
-
-      # e.g.,
-      # sim <- scheduleEvent(sim, time(sim) + P(sim)$.saveInterval, "LandWeb_summary", "save")
-
-      # ! ----- STOP EDITING ----- ! #
-    },
-    event1 = {
-      # ! ----- EDIT BELOW ----- ! #
-      # do stuff for this event
-
-      ## TODO: see e.g. LandR::plotLeadingSpecies()
-      files2upload <- aFunThatReturnsFileNamesOfPlotsEtc(
-            studyAreaName = P(sim)$.studyAreaName,
-            Nreps = P(sim)$reps,
-            outputDir = P(sim)$simOutputPath,
-            sppEquiv = sim$sppEquiv,
-            leadingPercentage = P(sim)$vegLeadingProportion,
-            rasterToMatch = sim$rasterToMatch
-      )
-      files2upload <- unlist(files2upload, recursive = TRUE) ## TODO
-
-      mod$files2upload <- c(mod$files2upload, files2upload)
-
-      # ! ----- STOP EDITING ----- ! #
-    },
-    event2 = {
-      # ! ----- EDIT BELOW ----- ! #
-      # do stuff for this event
-
-      # e.g., call your custom functions/methods here
-      # you can define your own methods below this `doEvent` function
-
-      # schedule future event(s)
-
-      # e.g.,
-      # sim <- scheduleEvent(sim, time(sim) + increment, "LandWeb_summary", "templateEvent")
+      sim <- postprocessLandWeb(sim)
 
       # ! ----- STOP EDITING ----- ! #
     },
     upload = {
       # ! ----- EDIT BELOW ----- ! #
+      browser()
       mod$files2upload <- set_names(mod$files2upload, basename(mod$files2upload))
 
       gid <- as_id(sim$uploadTo[[P(sim)$studyAreaName]])
@@ -174,52 +173,59 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
 Init <- function(sim) {
   # # ! ----- EDIT BELOW ----- ! #
 
+  padL <- if (P(sim)$version == 2 &&
+                  grepl(paste("BlueRidge", "Edson", "FMANWT_", "LP_BC", "MillarWestern", "Mistik",
+                              "prov", "Sundre", "Vanderwell", "WestFraser", "WeyCo", sep = "|"),
+                        outputPath(sim))) {
+    if (grepl("provMB", outputPath(sim))) 4 else 3
+  } else {
+    4
+  } ## TODO: confirm this is always true now
+
+  mod$analysesOutputsTimes <- seq(P(sim)$summaryPeriod[1], P(sim)$summaryPeriod[2],
+                                  by = P(sim)$summaryInterval)
+
+  #mod$allouts <- unlist(lapply(mySimOuts, function(sim) outputs(sim)$file))
+  mod$allouts <- dir(outputPath(sim), full.names = TRUE, recursive = TRUE)
+  mod$allouts <- grep("vegType|TimeSince", mod$allouts, value = TRUE)
+  mod$allouts <- grep("gri|png|txt|xml", mod$allouts, value = TRUE, invert = TRUE)
+  mod$allouts2 <- grep(paste(paste0("year", paddedFloatToChar(P(sim)$timeSeriesTimes, padL = padL)), collapse = "|"),
+                       mod$allouts, value = TRUE, invert = TRUE)
+
   ## TODO: inventory all files to ensure correct dir structure? compare against expected files?
   #filesUserHas <- fs::dir_ls(P(sim)$simOutputPath, recurse = TRUE, type = "file", glob = "*.qs")
 
-  ## TODO: update below for LandWeb
-  filesUserExpects <- rbindlist(lapply(P(sim)$studyAreaNames, function(studyAreaName) {
-    rbindlist(lapply(P(sim)$climateScenarios, function(climateScenario) {
-      rbindlist(lapply(P(sim)$reps, function(rep) {
-        runName <- sprintf("%s_%s_run%02d", studyAreaName, climateScenario, as.integer(rep))
-        f <- file.path(P(sim)$simOutputPath, runName, paste0(runName, ".qs"))
+  filesNeeded <- data.table(file = mod$allouts2, exists = TRUE)
 
-        data.table(file = f, exists = file.exists(f))
-      }))
-    }))
-  }))
-
-  if (!all(filesUserExpects$exists)) {
-    missing <- filesUserExpects[exists == FALSE, ]$file
+  if (!all(filesNeeded$exists)) {
+    missing <- filesNeeded[exists == FALSE, ]$file
     stop("Some simulation files missing:\n", paste(missing, collapse = "\n"))
   }
 
+  stopifnot(length(mod$allouts2) == 2 * length(P(sim)$reps) * length(mod$analysesOutputsTimes))
+
+  mod$layerName <- gsub(mod$allouts2, pattern = paste0(".*", outputPath(sim)), replacement = "")
+  mod$layerName <- gsub(mod$layerName, pattern = "[/\\]", replacement = "_")
+  mod$layerName <- gsub(mod$layerName, pattern = "^_", replacement = "")
+
+  mod$tsf <- gsub(".*vegTypeMap.*", NA, mod$allouts2) %>%
+    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
+  mod$vtm <- gsub(".*TimeSinceFire.*", NA, mod$allouts2) %>%
+    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
+
+  if (!is(sim$ml@metadata[["leaflet"]], "Path"))
+    sim$ml@metadata[["leaflet"]] <- asPath(as.character(sim$ml@metadata[["leaflet"]]))
+
+  if (!is(sim$ml@metadata[["targetFile"]], "Path"))
+    sim$ml@metadata[["targetFile"]] <- asPath(as.character(sim$ml@metadata[["targetFile"]]))
+
+  if (!is(sim$ml@metadata[["tsf"]], "Path"))
+    sim$ml@metadata[["tsf"]] <- asPath(as.character(sim$ml@metadata[["tsf"]]))
+
   # ! ----- STOP EDITING ----- ! #
 
   return(invisible(sim))
 }
-
-### template for save events
-Save <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-  # do stuff for this event
-  sim <- saveFiles(sim)
-
-  # ! ----- STOP EDITING ----- ! #
-  return(invisible(sim))
-}
-
-### template for plot events
-plotFun <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-  # do stuff for this event
-  sampleData <- data.frame("TheSample" = sample(1:10, replace = TRUE))
-  Plots(sampleData, fn = ggplotFn)
-
-  # ! ----- STOP EDITING ----- ! #
-  return(invisible(sim))
-}
-
 
 .inputObjects <- function(sim) {
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
@@ -227,11 +233,10 @@ plotFun <- function(sim) {
 
   # ! ----- EDIT BELOW ----- ! #
 
-  tmp <- loadSimList(file.path("outputs", runNamePostProcessing,
-                               paste0("simOutPreamble_", studyAreaName, ".qs"))) ## TODO: update for landweb
+  tmp <- loadSimList(file.path(outputPath(sim), paste0("simOutPreamble_", P(sim)$.studyAreaName, ".qs")))
 
-  if (!suppliedElsewhere("rasterToMatch", sim)) {
-    sim$rasterToMatch <- tmp$rasterToMatchReporting
+  if (!suppliedElsewhere("ml", sim)) {
+    sim$ml <- tmp$ml ## TODO: can't load ml objects from qs file !!
   }
 
   if (!suppliedElsewhere("sppEquiv", sim)) {
