@@ -1,19 +1,60 @@
 postprocessLandWeb <- function(sim) {
   ##  TODO: remove this once map works in parallel
-  if (!isFALSE(P(sim)$.useParallel)) {
-    warning("Post-processing does not currently work in parallel.\n",
-            "Temporarily setting option 'map.useParallel' to FALSE.")
-    opts <- options(map.useParallel = FALSE)
-    on.exit(options(opts), add = TRUE)
+  # if (!isFALSE(P(sim)$.useParallel)) {
+  #   warning("Post-processing does not currently work in parallel.\n",
+  #           "Temporarily setting option 'map.useParallel' to FALSE.")
+  #   opts <- options(map.useParallel = FALSE)
+  #   on.exit(options(opts), add = TRUE)
+  # }
+
+  padL <- if (P(sim)$version == 2 &&
+              grepl(paste("BlueRidge", "Edson", "FMANWT_", "LP_BC", "MillarWestern", "Mistik",
+                          "prov", "Sundre", "Vanderwell", "WestFraser", "WeyCo", sep = "|"),
+                    outputPath(sim))) {
+    if (grepl("provMB", outputPath(sim))) 4 else 3
+  } else {
+    4
+  } ## TODO: confirm this is always true now
+
+  mod$analysesOutputsTimes <- seq(P(sim)$summaryPeriod[1], P(sim)$summaryPeriod[2],
+                                  by = P(sim)$summaryInterval)
+
+  #mod$allouts <- unlist(lapply(mySimOuts, function(sim) outputs(sim)$file))
+  mod$allouts <- dir(outputPath(sim), full.names = TRUE, recursive = TRUE)
+  mod$allouts <- grep("vegType|TimeSince", mod$allouts, value = TRUE)
+  mod$allouts <- grep("gri|png|txt|xml", mod$allouts, value = TRUE, invert = TRUE)
+  mod$allouts2 <- grep(paste(paste0("year", paddedFloatToChar(P(sim)$timeSeriesTimes, padL = padL)), collapse = "|"),
+                       mod$allouts, value = TRUE, invert = TRUE)
+
+  ## TODO: inventory all files to ensure correct dir structure? compare against expected files?
+  #filesUserHas <- fs::dir_ls(P(sim)$simOutputPath, recurse = TRUE, type = "file", glob = "*.qs")
+
+  filesNeeded <- data.table(file = mod$allouts2, exists = TRUE)
+
+  if (!all(filesNeeded$exists)) {
+    missing <- filesNeeded[exists == FALSE, ]$file
+    stop("Some simulation files missing:\n", paste(missing, collapse = "\n"))
   }
 
-  ##  TODO: fix use of leaflet with mapAdd:
-  ##    Error in rbindlist(list(map@metadata, dts), use.names = TRUE, fill = TRUE) :
-  ##    Class attribute on column 5 of item 2 does not match with column 4 of item 1.
-  if (!isFALSE(getOption("map.tilePath"))) {
-    opts <- options(map.tilePath = FALSE)
-    on.exit(options(opts), add = TRUE)
-  }
+  stopifnot(length(mod$allouts2) == 2 * length(P(sim)$reps) * length(mod$analysesOutputsTimes))
+
+  mod$layerName <- gsub(mod$allouts2, pattern = paste0(".*", outputPath(sim)), replacement = "")
+  mod$layerName <- gsub(mod$layerName, pattern = "[/\\]", replacement = "_")
+  mod$layerName <- gsub(mod$layerName, pattern = "^_", replacement = "")
+
+  mod$tsf <- gsub(".*vegTypeMap.*", NA, mod$allouts2) %>%
+    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
+  mod$vtm <- gsub(".*TimeSinceFire.*", NA, mod$allouts2) %>%
+    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
+
+  if (!is(sim$ml@metadata[["leaflet"]], "Path"))
+    sim$ml@metadata[["leaflet"]] <- asPath(as.character(sim$ml@metadata[["leaflet"]]))
+
+  if (!is(sim$ml@metadata[["targetFile"]], "Path"))
+    sim$ml@metadata[["targetFile"]] <- asPath(as.character(sim$ml@metadata[["targetFile"]]))
+
+  if (!is(sim$ml@metadata[["tsf"]], "Path"))
+    sim$ml@metadata[["tsf"]] <- asPath(as.character(sim$ml@metadata[["tsf"]]))
 
   vtmCC <- vegTypeMapGenerator(sim$speciesLayers, P(sim)$vegLeadingProportion, mixedType = 2,
                                sppEquiv = sim$sppEquiv, sppEquivCol = P(sim)$sppEquivCol,
@@ -24,9 +65,6 @@ postprocessLandWeb <- function(sim) {
   fname2 <- file.path(outputPath(sim), "CurrentConditionTSF.tif")
   writeRaster(sim$ml[["CC TSF"]], fname2, overwrite = TRUE)
 
-  ## TODO: fix use of leaflet with mapAdd:
-  ##       Error in rbindlist(list(map@metadata, dts), use.names = TRUE, fill = TRUE) :
-  ##       Class attribute on column 5 of item 2 does not match with column 4 of item 1.
   sim$ml <- mapAdd(
     map = sim$ml, layerName = "CC VTM", analysisGroup1 = "CC",
     targetFile = asPath(fname),
@@ -118,12 +156,20 @@ postprocessLandWeb <- function(sim) {
 
   ag1 <- gsub(mod$layerName, pattern = "(.*)_.*_(.*)\\..*", replacement = "\\1_\\2") %>%
     grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
-browser()
+
+  #browser()
+  #debugonce(map:::mapAdd.default)
+
   sim$ml <- mapAdd(
-    map = sim$ml, layerName = mod$layerName, analysisGroup1 = ag1,
+    map = sim$ml,
+    layerName = mod$layerName,
+    analysisGroup1 = ag1,
     targetFile = asPath(mod$allouts2),
     destinationPath = asPath(dirname(mod$allouts2)),
-    filename2 = NULL, tsf = asPath(mod$tsf), vtm = asPath(mod$vtm),
+    filename2 = NULL,
+    tsf = asPath(mod$tsf),
+    vtm = asPath(mod$vtm),
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_tsf_vtm.log"),
     overwrite = TRUE,
     #useCache = "overwrite",
     leaflet = getOption("map.tilePath", FALSE)
@@ -141,8 +187,8 @@ browser()
 
   sim$ml <- mapAddAnalysis(sim$ml, functionName = "LeadingVegTypeByAgeClass",
                            #purgeAnalyses = "LeadingVegTypeByAgeClass",
-                           ageClasses = ageClasses, ageClassCutOffs = ageClassCutOffs,
-                           sppEquivCol = "EN_generic_short", sppEquiv = sppEquiv)
+                           ageClasses = P(sim)$ageClasses, ageClassCutOffs = P(sim)$ageClassCutOffs,
+                           sppEquivCol = "EN_generic_short", sppEquiv = sim$sppEquiv)
 
   qs::qsave(sim$ml, fml[[2]])
   #sim$ml <- qs::qload(fml[[2]])
@@ -150,8 +196,8 @@ browser()
   sim$ml <- mapAddAnalysis(sim$ml, functionName = "LargePatches",
                            id = "1", labelColumn = "shinyLabel",
                            #purgeAnalyses = "LargePatches",
-                           ageClasses = ageClasses, ageClassCutOffs = ageClassCutOffs,
-                           sppEquivCol = "EN_generic_short", sppEquiv = sppEquiv)
+                           ageClasses = P(sim)$ageClasses, ageClassCutOffs = P(sim)$ageClassCutOffs,
+                           sppEquivCol = "EN_generic_short", sppEquiv = sim$sppEquiv)
 
   qs::qsave(sim$ml, fml[[3]])
   #sim$ml <- qs::qload(fml[[3]])
