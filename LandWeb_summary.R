@@ -7,7 +7,7 @@ defineModule(sim, list(
     person(c("Alex", "M."), "Chubaty", email = "achubaty@for-cast.ca", role = c("aut"))
   ),
   childModules = character(0),
-  version = list(LandWeb_summary = "0.0.0.9000"),
+  version = list(LandWeb_summary = "0.0.1"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -16,7 +16,7 @@ defineModule(sim, list(
                   "achubaty/amc@development",
                   "PredictiveEcology/LandR@development",
                   "PredictiveEcology/LandWebUtils@development",
-                  "PredictiveEcology/map (>= 0.0.4)",
+                  "PredictiveEcology/map (>= 0.0.4.9000)",
                   "PredictiveEcology/reproducible@development (>= 1.2.10)",
                   "PredictiveEcology/SpaDES.core@development (>= 1.1.0.9000)"),
   parameters = bindrows(
@@ -46,6 +46,8 @@ defineModule(sim, list(
                     "a number that defines whether a species is leading for a given pixel"),
     defineParameter("version", "integer", 3L, 2L, 3L,
                     "LandWeb model version (2 for runs using vegetation parameter forcings, else 3)."),
+    defineParameter(".makeTiles", "logical", FALSE, NA, NA,
+                    "If `TRUE`, will generate leaflet tiles during postprocessing."),
     defineParameter(".plots", "character", "screen", NA, NA,
                     "Used by Plots function, which can be optionally used here"),
     defineParameter(".plotInitialTime", "numeric", start(sim), NA, NA,
@@ -108,16 +110,11 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
         future::plan("multiprocess") ## future::plan(future.callr::callr)
       }
 
-      tsfTimeSeries <- gsub(".*vegTypeMap.*", NA, mod$allouts) %>%
-        grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
-      vtmTimeSeries <- gsub(".*TimeSinceFire.*", NA, mod$allouts) %>%
-        grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
-
       if (length(tsfTimeSeries)) {
         sA <- studyArea(sim$ml, 2)
         gifName <- file.path(normPath(outputPath(sim)), "animation_tsf.gif")
         future({
-          tsfStack <- raster::stack(tsfTimeSeries)# %>% writeRaster(file.path(outputPath(sim), "stack_tsf.tif"))
+          tsfStack <- raster::stack(mod$tsfTimeSeries)# %>% writeRaster(file.path(outputPath(sim), "stack_tsf.tif"))
           animation::saveGIF(ani.height = 1200, ani.width = 1200, interval = 1.0,
                              movie.name = gifName, expr = {
                                brks <- c(0, 1, 40, 80, 120, 1000)
@@ -126,19 +123,23 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
                                  plot(raster::mask(tsfStack[[i]], sA), breaks = brks, col = cols)
                                }
                              })
-        })
-        rm(tsfStack)
+          rm(tsfStack)
 
-        #if (length(vtmTimeSeries)) {
-        #  vtmStack <- raster::stack(vtmTimeSeries)# %>% writeRaster(file.path(outputPath(sim), "stack_vtm.tif"))
-        #  gifName <- file.path(normPath(outputPath(sim)), "animation_vtm.gif")
-        #  animation::saveGIF(ani.height = 1200, ani.width = 1200, interval = 1.0,
-        #                     movie.name = gifName, expr = {
-        #                       for (i in seq(numLayers(vtmStack)))
-        #                         plot(mask(vtmStack[[i]], studyArea(sim$ml, 2))) # TODO: this animation isn't great!
-        #  })
-        #  rm(vtmStack)
-        #}
+          invisible(TRUE)
+        })
+
+        future({
+          vtmStack <- raster::stack(mod$vtmTimeSeries)# %>% writeRaster(file.path(outputPath(sim), "stack_vtm.tif"))
+          gifName <- file.path(normPath(outputPath(sim)), "animation_vtm.gif")
+          animation::saveGIF(ani.height = 1200, ani.width = 1200, interval = 1.0,
+                             movie.name = gifName, expr = {
+                               for (i in seq(numLayers(vtmStack)))
+                                 plot(mask(vtmStack[[i]], studyArea(sim$ml, 2))) # TODO: this animation isn't great!
+                             })
+          rm(vtmStack)
+
+          invisible(TRUE)
+        })
       }
     },
     postprocess = {
@@ -151,7 +152,7 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
     },
     upload = {
       # ! ----- EDIT BELOW ----- ! #
-      browser()
+      browser() ## TODO
       mod$files2upload <- set_names(mod$files2upload, basename(mod$files2upload))
 
       gid <- as_id(sim$uploadTo[[P(sim)$studyAreaName]])

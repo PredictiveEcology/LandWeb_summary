@@ -1,12 +1,7 @@
 postprocessLandWeb <- function(sim) {
-  ##  TODO: remove this once map works in parallel
-  # if (!isFALSE(P(sim)$.useParallel)) {
-  #   warning("Post-processing does not currently work in parallel.\n",
-  #           "Temporarily setting option 'map.useParallel' to FALSE.")
-  #   opts <- options(map.useParallel = FALSE)
-  #   on.exit(options(opts), add = TRUE)
-  # }
+  .tilePath <- getOption("map.tilePath", file.path(outputPath(sim), "tiles"))
 
+  ## TODO: put this file checking code back into init event once mod cache problem fixed
   padL <- if (P(sim)$version == 2 &&
               grepl(paste("BlueRidge", "Edson", "FMANWT_", "LP_BC", "MillarWestern", "Mistik",
                           "prov", "Sundre", "Vanderwell", "WestFraser", "WeyCo", sep = "|"),
@@ -19,7 +14,6 @@ postprocessLandWeb <- function(sim) {
   mod$analysesOutputsTimes <- seq(P(sim)$summaryPeriod[1], P(sim)$summaryPeriod[2],
                                   by = P(sim)$summaryInterval)
 
-  #mod$allouts <- unlist(lapply(mySimOuts, function(sim) outputs(sim)$file))
   mod$allouts <- dir(outputPath(sim), full.names = TRUE, recursive = TRUE)
   mod$allouts <- grep("vegType|TimeSince", mod$allouts, value = TRUE)
   mod$allouts <- grep("gri|png|txt|xml", mod$allouts, value = TRUE, invert = TRUE)
@@ -29,12 +23,12 @@ postprocessLandWeb <- function(sim) {
   ## TODO: inventory all files to ensure correct dir structure? compare against expected files?
   #filesUserHas <- fs::dir_ls(P(sim)$simOutputPath, recurse = TRUE, type = "file", glob = "*.qs")
 
-  filesNeeded <- data.table(file = mod$allouts2, exists = TRUE)
+  # filesNeeded <- data.table(file = mod$allouts2, exists = TRUE) ## TODO
 
-  if (!all(filesNeeded$exists)) {
-    missing <- filesNeeded[exists == FALSE, ]$file
-    stop("Some simulation files missing:\n", paste(missing, collapse = "\n"))
-  }
+  # if (!all(filesNeeded$exists)) {
+  #   missing <- filesNeeded[exists == FALSE, ]$file
+  #   stop("Some simulation files missing:\n", paste(missing, collapse = "\n"))
+  # }
 
   stopifnot(length(mod$allouts2) == 2 * length(P(sim)$reps) * length(mod$analysesOutputsTimes))
 
@@ -47,23 +41,21 @@ postprocessLandWeb <- function(sim) {
   mod$vtm <- gsub(".*TimeSinceFire.*", NA, mod$allouts2) %>%
     grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
 
-  if (!is(sim$ml@metadata[["leaflet"]], "Path"))
-    sim$ml@metadata[["leaflet"]] <- asPath(as.character(sim$ml@metadata[["leaflet"]]))
-
-  if (!is(sim$ml@metadata[["targetFile"]], "Path"))
-    sim$ml@metadata[["targetFile"]] <- asPath(as.character(sim$ml@metadata[["targetFile"]]))
-
-  if (!is(sim$ml@metadata[["tsf"]], "Path"))
-    sim$ml@metadata[["tsf"]] <- asPath(as.character(sim$ml@metadata[["tsf"]]))
+  mod$tsfTimeSeries <- gsub(".*vegTypeMap.*", NA, mod$allouts) %>%
+    grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
+  mod$vtmTimeSeries <- gsub(".*TimeSinceFire.*", NA, mod$allouts) %>%
+    grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
+  ###
 
   vtmCC <- vegTypeMapGenerator(sim$speciesLayers, P(sim)$vegLeadingProportion, mixedType = 2,
                                sppEquiv = sim$sppEquiv, sppEquivCol = P(sim)$sppEquivCol,
                                colors = sim$sppColorVect, doAssertion = FALSE)
-  fname <- file.path(outputPath(sim), "CurrentConditionVTM.tif")
-  writeRaster(vtmCC, fname, overwrite = TRUE)
+
+  fname <- file.path(outputPath(sim), "CurrentConditionVTM.grd")
+  writeRaster(vtmCC, fname, datatype = "INT1U", overwrite = TRUE)
 
   fname2 <- file.path(outputPath(sim), "CurrentConditionTSF.tif")
-  writeRaster(sim$ml[["CC TSF"]], fname2, overwrite = TRUE)
+  writeRaster(sim$ml[["CC TSF"]], fname2, datatype = "INT1U", overwrite = TRUE)
 
   sim$ml <- mapAdd(
     map = sim$ml, layerName = "CC VTM", analysisGroup1 = "CC",
@@ -75,7 +67,7 @@ postprocessLandWeb <- function(sim) {
     CC = TRUE,
     overwrite = TRUE,
     #useCache = "overwrite",
-    leaflet = getOption("map.tilePath", FALSE)
+    leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE
   )
 
   ## TODO: WORKAROUND for some funny business with col names.
@@ -157,9 +149,6 @@ postprocessLandWeb <- function(sim) {
   ag1 <- gsub(mod$layerName, pattern = "(.*)_.*_(.*)\\..*", replacement = "\\1_\\2") %>%
     grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
 
-  #browser()
-  #debugonce(map:::mapAdd.default)
-
   sim$ml <- mapAdd(
     map = sim$ml,
     layerName = mod$layerName,
@@ -172,7 +161,7 @@ postprocessLandWeb <- function(sim) {
     outfile = file.path(outputPath(sim), "log", "LandWeb_summary_tsf_vtm.log"),
     overwrite = TRUE,
     #useCache = "overwrite",
-    leaflet = getOption("map.tilePath", FALSE)
+    leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE
   )
 
   fml <- list(
@@ -185,22 +174,41 @@ postprocessLandWeb <- function(sim) {
   qs::qsave(sim$ml, fml[[1]])
   #sim$ml <- qs::qload(fml[[1]])
 
-  sim$ml <- mapAddAnalysis(sim$ml, functionName = "LeadingVegTypeByAgeClass",
-                           #purgeAnalyses = "LeadingVegTypeByAgeClass",
-                           ageClasses = P(sim)$ageClasses, ageClassCutOffs = P(sim)$ageClassCutOffs,
-                           sppEquivCol = "EN_generic_short", sppEquiv = sim$sppEquiv)
+  ## next sets of analyses require more ram so don't use previously set num cpus
+  prevNcores <- getOption("map.maxNumCores")
+  options(map.maxNumCores = pemisc::optimalClusterNum(60000, parallel::detectCores() / 2))
+
+  sim$ml <- mapAddAnalysis(
+    sim$ml,
+    functionName = "LeadingVegTypeByAgeClass",
+    #purgeAnalyses = "LeadingVegTypeByAgeClass",
+    ageClasses = P(sim)$ageClasses,
+    ageClassCutOffs = P(sim)$ageClassCutOffs,
+    sppEquivCol = "EN_generic_short",
+    sppEquiv = sim$sppEquiv,
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_LeadingVegTypeByAgeClass.log")
+  )
 
   qs::qsave(sim$ml, fml[[2]])
   #sim$ml <- qs::qload(fml[[2]])
 
-  sim$ml <- mapAddAnalysis(sim$ml, functionName = "LargePatches",
-                           id = "1", labelColumn = "shinyLabel",
-                           #purgeAnalyses = "LargePatches",
-                           ageClasses = P(sim)$ageClasses, ageClassCutOffs = P(sim)$ageClassCutOffs,
-                           sppEquivCol = "EN_generic_short", sppEquiv = sim$sppEquiv)
+  sim$ml <- mapAddAnalysis(
+    sim$ml,
+    functionName = "LargePatches",
+    id = "1",
+    labelColumn = "shinyLabel",
+    #purgeAnalyses = "LargePatches",
+    ageClasses = P(sim)$ageClasses,
+    ageClassCutOffs = P(sim)$ageClassCutOffs,
+    sppEquivCol = "EN_generic_short",
+    sppEquiv = sim$sppEquiv,
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_LargePatches.log")
+  )
 
   qs::qsave(sim$ml, fml[[3]])
   #sim$ml <- qs::qload(fml[[3]])
+
+  options(map.maxNumCores = prevNcores)
 
   histDirOld <- file.path(outputPath(sim), "hists") %>% normPath(.)
   histDirNew <- file.path(outputPath(sim), "histograms") %>% normPath(.)
@@ -214,34 +222,58 @@ postprocessLandWeb <- function(sim) {
     file.rename(from = histDirNew, to = histDirArchived)
 
   ## this analysisGroupReportingPolygon MUST be the same as one of ones already analysed
-  sim$ml <- mapAddPostHocAnalysis(map = sim$ml, functionName = "rbindlistAG",
-                                  postHocAnalysisGroups = "analysisGroupReportingPolygon",
-                                  #purgeAnalyses = "rbindlistAG",
-                                  postHocAnalyses = "all")
-  sim$ml <- mapAddPostHocAnalysis(map = sim$ml, functionName = "runBoxPlotsVegCover",
-                                  postHocAnalysisGroups = "analysisGroupReportingPolygon",
-                                  postHocAnalyses = "rbindlistAG",
-                                  #purgeAnalyses = "runBoxPlotsVegCover",
-                                  dPath = file.path(outputPath(sim), "boxplots"))
-  sim$ml <- mapAddPostHocAnalysis(map = sim$ml, functionName = "runHistsVegCover",
-                                  postHocAnalysisGroups = "analysisGroupReportingPolygon",
-                                  postHocAnalyses = "rbindlistAG",
-                                  #purgeAnalyses = "runHistsVegCover",
-                                  dPath = file.path(outputPath(sim), "histograms"))
-  sim$ml <- mapAddPostHocAnalysis(map = sim$ml, functionName = "runHistsLargePatches",
-                                  postHocAnalysisGroups = "analysisGroupReportingPolygon",
-                                  postHocAnalyses = "rbindlistAG",
-                                  #purgeAnalyses = "runHistsLargePatches",
-                                  dPath = file.path(outputPath(sim), "histograms"))
+  sim$ml <- mapAddPostHocAnalysis(
+    map = sim$ml,
+    functionName = "rbindlistAG",
+    postHocAnalysisGroups = "analysisGroupReportingPolygon",
+    #purgeAnalyses = "rbindlistAG",
+    postHocAnalyses = "all",
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_rbindlistAG.log")
+  )
+
+  sim$ml <- mapAddPostHocAnalysis(
+    map = sim$ml,
+    functionName = "runBoxPlotsVegCover",
+    postHocAnalysisGroups = "analysisGroupReportingPolygon",
+    postHocAnalyses = "rbindlistAG",
+    #purgeAnalyses = "runBoxPlotsVegCover",
+    dPath = file.path(outputPath(sim), "boxplots"),
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_runBoxPlotsVegCover.log")
+  )
+
+  sim$ml <- mapAddPostHocAnalysis(
+    map = sim$ml,
+    functionName = "runHistsVegCover",
+    postHocAnalysisGroups = "analysisGroupReportingPolygon",
+    postHocAnalyses = "rbindlistAG",
+    #purgeAnalyses = "runHistsVegCover",
+    dPath = file.path(outputPath(sim), "histograms"),
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_runHistsVegCover.log")
+  )
+
+  sim$ml <- mapAddPostHocAnalysis(
+    map = sim$ml,
+    functionName = "runHistsLargePatches",
+    postHocAnalysisGroups = "analysisGroupReportingPolygon",
+    postHocAnalyses = "rbindlistAG",
+    #purgeAnalyses = "runHistsLargePatches",
+    dPath = file.path(outputPath(sim), "histograms"),
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_runHistsLargePatches.log")
+  )
 
   qs::qsave(sim$ml, fml[[4]])
   #ml <- qs::qload(fml[[4]])
 
   ## files to be uploaded --------------------------------------------------------------------------
-  browser()
-  files2upload <- unlist(files2upload, recursive = TRUE) ## TODO: from ml? boxpolts, hist, csvs, rasters?
 
-  mod$files2upload <- c(mod$files2upload, files2upload)
+  ## TODO: archives (zip) instead of indiv files
+  # files2upload <- c(
+  #   sim$ml@metadata$tsf,
+  #   sim$ml@metadata$vtm,
+  #   list.files(file.path(outputPath(sim), "boxplots"), recursive = TRUE),
+  #   list.files(file.path(outputPath(sim), "histograms"), recursive = TRUE)
+  # )
+  # mod$files2upload <- c(mod$files2upload, files2upload)
 
   return(invisible(sim))
 }
