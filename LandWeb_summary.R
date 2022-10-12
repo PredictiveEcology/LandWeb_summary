@@ -26,7 +26,7 @@ defineModule(sim, list(
                     "defines the age boundaries between age classes"),
     defineParameter("ageClassMaxAge", "integer", 400L, NA, NA,
                     "maximum possible age"),
-    defineParameter("reps", "integer", 1L:10L, 1, NA,
+    defineParameter("reps", "integer", 1L:10L, 1L, NA_integer_,
                     paste("number of replicates/runs per study area.")),
     defineParameter("simOutputPath", "character", outputPath(sim), NA, NA,
                     "Directory specifying the location of the simulation outputs."),
