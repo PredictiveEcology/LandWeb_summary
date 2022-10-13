@@ -12,7 +12,8 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.md", "LandWeb_summary.Rmd"), ## README generated from module Rmd
-  reqdPkgs = list("animation", "data.table", "future", "ggplot2", "googledrive", "purrr", "qs", "raster", "sp",
+  reqdPkgs = list("animation", "data.table", "fs", "future", "future.callr", "ggplot2", "googledrive",
+                  "purrr", "qs", "raster", "sp",
                   "achubaty/amc@development",
                   "PredictiveEcology/LandR@development",
                   "PredictiveEcology/LandWebUtils@development",
@@ -61,8 +62,8 @@ defineModule(sim, list(
     defineParameter(".studyAreaName", "character", NA, NA, NA,
                     "Human-readable name for the study area used - e.g., a hash of the study",
                           "area obtained using `reproducible::studyAreaName()`"),
-    defineParameter(".useCache", "logical", FALSE, NA, NA,
-                    "Should caching of events or module be used?"),
+    defineParameter(".useCache", "character", c(".inputObjects", "animation", "postprocess"), NA, NA,
+                    "Names of events to be cached."),
     defineParameter(".useParallel", "logical", getOption("map.useParallel", FALSE), NA, NA,
                     desc = paste("Logical. If `TRUE`, and there is more than one calculation to do at any stage,",
                                  "it will create and use a parallel cluster via `makeOptimalCluster()`."))
@@ -90,11 +91,7 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
     eventType,
     init = {
       sim <- Init(sim)
-
-      if (FALSE) {
-        sim <- scheduleEvent(sim, start(sim), "LandWeb_summary", "animation") ## TODO: skip for now -- use future!!!!
-      }
-
+      # sim <- scheduleEvent(sim, start(sim), "LandWeb_summary", "animation") ## TODO: fix error
       sim <- scheduleEvent(sim, start(sim), "LandWeb_summary", "postprocess")
 
       if (isTRUE(P(sim)$upload)) {
@@ -102,44 +99,33 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
       }
     },
     animation = {
-      ## create vtm and tsf stacks for animation
-
-      if (isFALSE(isRstudio())) {
-        Require("future")
-        options("future.availableCores.custom" = function() { min(getOption("Ncpus"), 4) })
-        future::plan("multiprocess") ## future::plan(future.callr::callr)
-      }
-
-      if (length(tsfTimeSeries)) {
+      ## create tsf stack for animation
+      ## -- pop it into a future and come back to it after rest of postprocessing completed
+      if (is.null(mod$animation_tsf)) {
         sA <- studyArea(sim$ml, 2)
-        gifName <- file.path(normPath(outputPath(sim)), "animation_tsf.gif")
-        future({
-          tsfStack <- raster::stack(mod$tsfTimeSeries)# %>% writeRaster(file.path(outputPath(sim), "stack_tsf.tif"))
+
+        tsfStack <- raster::stack(mod$tsfTimeSeries)
+        brks <- sort(c(1L, P(sim)$ageClassCutOffs, P(sim)$ageClassMaxAge))
+        cols <- RColorBrewer::brewer.pal(5, "RdYlGn")
+
+        gifNameTSF <- file.path(normPath(outputPath(sim)), "animation_tsf.gif")
+        mod$animation_tsf <- future({
+          ## TODO: Error in magick_image_animate(image, as.integer(delay), as.integer(loop),  :
+          ## R: cache resources exhausted `/tmp/RtmpbuP1HC/Rplot1.png' @ error/cache.c/OpenPixelCache/4083
           animation::saveGIF(ani.height = 1200, ani.width = 1200, interval = 1.0,
-                             movie.name = gifName, expr = {
-                               brks <- c(0, 1, 40, 80, 120, 1000)
-                               cols <- RColorBrewer::brewer.pal(5, "RdYlGn")
-                               for (i in seq(numLayers(tsfStack))) {
-                                 plot(raster::mask(tsfStack[[i]], sA), breaks = brks, col = cols)
+                             movie.name = gifNameTSF, expr = {
+                               for (i in seq(quickPlot::numLayers(tsfStack))) {
+                                 raster::plot(raster::mask(tsfStack[[i]], sA), breaks = brks, col = cols)
                                }
                              })
-          rm(tsfStack)
+          file.exists(gifNameTSF)
+        }, label = paste0("animation_", P(sim)$.studyAreaName, "_TSF"), seed = TRUE)
 
-          invisible(TRUE)
-        })
-
-        future({
-          vtmStack <- raster::stack(mod$vtmTimeSeries)# %>% writeRaster(file.path(outputPath(sim), "stack_vtm.tif"))
-          gifName <- file.path(normPath(outputPath(sim)), "animation_vtm.gif")
-          animation::saveGIF(ani.height = 1200, ani.width = 1200, interval = 1.0,
-                             movie.name = gifName, expr = {
-                               for (i in seq(numLayers(vtmStack)))
-                                 plot(mask(vtmStack[[i]], studyArea(sim$ml, 2))) # TODO: this animation isn't great!
-                             })
-          rm(vtmStack)
-
-          invisible(TRUE)
-        })
+        sim <- scheduleEvent(sim, time(sim) + 1, "LandWeb_summary", "animation", eventPriority = .last())
+      } else {
+        if (isFALSE(value(mod$animation_tsf))) {
+          warning("TSF animation failed.")
+        }
       }
     },
     postprocess = {
@@ -173,6 +159,49 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
 ### template initialization
 Init <- function(sim) {
   # # ! ----- EDIT BELOW ----- ! #
+
+  padL <- if (P(sim)$version == 2 &&
+              grepl(paste("BlueRidge", "Edson", "FMANWT_", "LP_BC", "MillarWestern", "Mistik",
+                          "prov", "Sundre", "Vanderwell", "WestFraser", "WeyCo", sep = "|"),
+                    outputPath(sim))) {
+    if (grepl("provMB", outputPath(sim))) 4 else 3
+  } else {
+    4
+  } ## TODO: confirm this is always true now
+
+  mod$analysesOutputsTimes <- seq(P(sim)$summaryPeriod[1], P(sim)$summaryPeriod[2],
+                                  by = P(sim)$summaryInterval)
+
+  mod$allouts <- fs::dir_ls(outputPath(sim), regexp = "vegType|TimeSince", recurse = 1, type = "file") %>%
+    grep("gri|png|txt|xml", ., value = TRUE, invert = TRUE)
+  mod$allouts2 <- grep(paste(paste0("year", paddedFloatToChar(P(sim)$timeSeriesTimes, padL = padL)), collapse = "|"),
+                   mod$allouts, value = TRUE, invert = TRUE)
+
+  ## TODO: inventory all files to ensure correct dir structure? compare against expected files?
+  #filesUserHas <- fs::dir_ls(P(sim)$simOutputPath, recurse = TRUE, type = "file", glob = "*.qs")
+
+  # filesNeeded <- data.table(file = mod$allouts2, exists = TRUE) ## TODO
+
+  # if (!all(filesNeeded$exists)) {
+  #   missing <- filesNeeded[exists == FALSE, ]$file
+  #   stop("Some simulation files missing:\n", paste(missing, collapse = "\n"))
+  # }
+
+  stopifnot(length(mod$allouts2) == 2 * length(P(sim)$reps) * length(mod$analysesOutputsTimes))
+
+  mod$layerName <- gsub(mod$allouts2, pattern = paste0(".*", outputPath(sim)), replacement = "")
+  mod$layerName <- gsub(mod$layerName, pattern = "[/\\]", replacement = "_")
+  mod$layerName <- gsub(mod$layerName, pattern = "^_", replacement = "")
+
+  mod$tsf <- gsub(".*vegTypeMap.*", NA, mod$allouts2) %>%
+    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
+  mod$vtm <- gsub(".*TimeSinceFire.*", NA, mod$allouts2) %>%
+    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
+
+  mod$tsfTimeSeries <- gsub(".*vegTypeMap.*", NA, mod$allouts) %>%
+    grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
+  mod$vtmTimeSeries <- gsub(".*TimeSinceFire.*", NA, mod$allouts) %>%
+    grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
 
   # ! ----- STOP EDITING ----- ! #
 

@@ -1,52 +1,6 @@
 postprocessLandWeb <- function(sim) {
   .tilePath <- getOption("map.tilePath", file.path(outputPath(sim), "tiles"))
 
-  ## TODO: put this file checking code back into init event once mod cache problem fixed
-  padL <- if (P(sim)$version == 2 &&
-              grepl(paste("BlueRidge", "Edson", "FMANWT_", "LP_BC", "MillarWestern", "Mistik",
-                          "prov", "Sundre", "Vanderwell", "WestFraser", "WeyCo", sep = "|"),
-                    outputPath(sim))) {
-    if (grepl("provMB", outputPath(sim))) 4 else 3
-  } else {
-    4
-  } ## TODO: confirm this is always true now
-
-  mod$analysesOutputsTimes <- seq(P(sim)$summaryPeriod[1], P(sim)$summaryPeriod[2],
-                                  by = P(sim)$summaryInterval)
-
-  mod$allouts <- dir(outputPath(sim), full.names = TRUE, recursive = TRUE)
-  mod$allouts <- grep("vegType|TimeSince", mod$allouts, value = TRUE)
-  mod$allouts <- grep("gri|png|txt|xml", mod$allouts, value = TRUE, invert = TRUE)
-  mod$allouts2 <- grep(paste(paste0("year", paddedFloatToChar(P(sim)$timeSeriesTimes, padL = padL)), collapse = "|"),
-                       mod$allouts, value = TRUE, invert = TRUE)
-
-  ## TODO: inventory all files to ensure correct dir structure? compare against expected files?
-  #filesUserHas <- fs::dir_ls(P(sim)$simOutputPath, recurse = TRUE, type = "file", glob = "*.qs")
-
-  # filesNeeded <- data.table(file = mod$allouts2, exists = TRUE) ## TODO
-
-  # if (!all(filesNeeded$exists)) {
-  #   missing <- filesNeeded[exists == FALSE, ]$file
-  #   stop("Some simulation files missing:\n", paste(missing, collapse = "\n"))
-  # }
-
-  stopifnot(length(mod$allouts2) == 2 * length(P(sim)$reps) * length(mod$analysesOutputsTimes))
-
-  mod$layerName <- gsub(mod$allouts2, pattern = paste0(".*", outputPath(sim)), replacement = "")
-  mod$layerName <- gsub(mod$layerName, pattern = "[/\\]", replacement = "_")
-  mod$layerName <- gsub(mod$layerName, pattern = "^_", replacement = "")
-
-  mod$tsf <- gsub(".*vegTypeMap.*", NA, mod$allouts2) %>%
-    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
-  mod$vtm <- gsub(".*TimeSinceFire.*", NA, mod$allouts2) %>%
-    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
-
-  mod$tsfTimeSeries <- gsub(".*vegTypeMap.*", NA, mod$allouts) %>%
-    grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
-  mod$vtmTimeSeries <- gsub(".*TimeSinceFire.*", NA, mod$allouts) %>%
-    grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
-  ###
-
   vtmCC <- vegTypeMapGenerator(sim$speciesLayers, P(sim)$vegLeadingProportion, mixedType = 2,
                                sppEquiv = sim$sppEquiv, sppEquivCol = P(sim)$sppEquivCol,
                                colors = sim$sppColorVect, doAssertion = FALSE)
