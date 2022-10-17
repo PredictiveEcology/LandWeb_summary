@@ -16,7 +16,7 @@ defineModule(sim, list(
                   "purrr", "qs", "raster", "sp",
                   "achubaty/amc@development",
                   "PredictiveEcology/LandR@development",
-                  "PredictiveEcology/LandWebUtils@development",
+                  "PredictiveEcology/LandWebUtils@development (>= 0.1.4.9003)",
                   "PredictiveEcology/map (>= 0.0.4.9000)",
                   "PredictiveEcology/reproducible@development (>= 1.2.10)",
                   "PredictiveEcology/SpaDES.core@development (>= 1.1.0.9000)"),
@@ -169,8 +169,7 @@ Init <- function(sim) {
     4
   } ## TODO: confirm this is always true now
 
-  mod$analysesOutputsTimes <- seq(P(sim)$summaryPeriod[1], P(sim)$summaryPeriod[2],
-                                  by = P(sim)$summaryInterval)
+  mod$analysesOutputsTimes <- analysesOutputsTimes(P(sim)$summaryPeriod, P(sim)$summaryInterval)
 
   mod$allouts <- fs::dir_ls(outputPath(sim), regexp = "vegType|TimeSince", recurse = 1, type = "file") %>%
     grep("gri|png|txt|xml", ., value = TRUE, invert = TRUE)
