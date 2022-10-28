@@ -62,8 +62,8 @@ defineModule(sim, list(
     defineParameter(".saveInterval", "numeric", NA, NA, NA,
                     "This describes the simulation time interval between save events."),
     defineParameter(".studyAreaName", "character", NA, NA, NA,
-                    "Human-readable name for the study area used - e.g., a hash of the study",
-                          "area obtained using `reproducible::studyAreaName()`"),
+                    paste("Human-readable name for the study area used - e.g., a hash of the study",
+                          "area obtained using `reproducible::studyAreaName()`")),
     defineParameter(".useCache", "character", c(".inputObjects", "animation", "postprocess"), NA, NA,
                     "Names of events to be cached."),
     defineParameter(".useParallel", "logical", getOption("map.useParallel", FALSE), NA, NA,
@@ -143,7 +143,7 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
       browser() ## TODO
       mod$files2upload <- set_names(mod$files2upload, basename(mod$files2upload))
 
-      gid <- as_id(sim$uploadTo[[P(sim)$studyAreaName]])
+      gid <- as_id(sim$uploadTo[[P(sim)$.studyAreaName]])
       prevUploaded <- drive_ls(gid)
       toUpload <- mod$files2upload[!(basename(mod$files2upload) %in% prevUploaded$name)]
       uploaded <- map(toUpload, ~ drive_upload(.x, path = gid))
