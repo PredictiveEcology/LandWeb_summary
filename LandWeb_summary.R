@@ -175,8 +175,9 @@ Init <- function(sim) {
 
   mod$allouts <- fs::dir_ls(outputPath(sim), regexp = "vegType|TimeSince", recurse = 1, type = "file") %>%
     grep("gri|png|txt|xml", ., value = TRUE, invert = TRUE)
-  mod$allouts2 <- grep(paste(paste0("year", paddedFloatToChar(P(sim)$timeSeriesTimes, padL = padL)), collapse = "|"),
-                   mod$allouts, value = TRUE, invert = TRUE)
+  mod$allouts2 <- grep(paste(paste0("year", paddedFloatToChar(
+    setdiff(P(sim)$timeSeriesTimes, mod$analysesOutputsTimes), padL = padL)), collapse = "|"),
+    mod$allouts, value = TRUE, invert = TRUE)
 
   ## TODO: inventory all files to ensure correct dir structure? compare against expected files?
   #filesUserHas <- fs::dir_ls(P(sim)$simOutputPath, recurse = TRUE, type = "file", glob = "*.qs")

@@ -1,7 +1,7 @@
 ---
 title: "LandWeb_summary Manual"
-subtitle: "v.0.0.0.9000"
-date: "Last updated: 2022-09-22"
+subtitle: "v.0.0.1"
+date: "Last updated: 2022-10-28"
 output:
   bookdown::html_document2:
     toc: true
@@ -54,9 +54,21 @@ Table \@ref(tab:moduleInputs-LandWeb-summary) shows the full list of module inpu
  </thead>
 <tbody>
   <tr>
+   <td style="text-align:left;"> ml </td>
+   <td style="text-align:left;"> map </td>
+   <td style="text-align:left;"> map list object from LandWeb_preamble </td>
    <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> sppColorVect </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> A named vector of colors to use for plotting. The names must be in `sim$sppEquiv[[P(sim)$sppEquivCol]]`, and should also contain a color for 'Mixed' </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> NA </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> sppEquiv </td>
+   <td style="text-align:left;"> data.table </td>
+   <td style="text-align:left;"> table of species equivalencies. See `LandR::sppEquivalencies_CA`.NANA </td>
    <td style="text-align:left;"> NA </td>
   </tr>
 </tbody>
@@ -78,6 +90,118 @@ Provide a summary of user-visible parameters (Table \@ref(tab:moduleParams-LandW
   </tr>
  </thead>
 <tbody>
+  <tr>
+   <td style="text-align:left;"> ageClasses </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> Young, I.... </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> descriptions/labels for age classes (seral stages) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ageClassCutOffs </td>
+   <td style="text-align:left;"> integer </td>
+   <td style="text-align:left;"> 0, 40, 8.... </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> defines the age boundaries between age classes </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ageClassMaxAge </td>
+   <td style="text-align:left;"> integer </td>
+   <td style="text-align:left;"> 400 </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> maximum possible age </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> reps </td>
+   <td style="text-align:left;"> integer </td>
+   <td style="text-align:left;"> 1, 2, 3,.... </td>
+   <td style="text-align:left;"> 1 </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> number of replicates/runs per study area. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> simOutputPath </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> outputPa.... </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Directory specifying the location of the simulation outputs. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> sppEquivCol </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> EN_gener.... </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> The column in `sim$sppEquiv` data.table to use as a naming convention </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> summaryInterval </td>
+   <td style="text-align:left;"> integer </td>
+   <td style="text-align:left;"> 100 </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> simulation time interval at which to take 'snapshots' used for summary analyses </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> summaryPeriod </td>
+   <td style="text-align:left;"> integer </td>
+   <td style="text-align:left;"> 700, 1000 </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> lower and upper end of the range of simulation times used for summary analyses </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> timeSeriesTimes </td>
+   <td style="text-align:left;"> integer </td>
+   <td style="text-align:left;"> 601, 602.... </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> timesteps to use to build timeseries rasters showing leading cover change over time </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> upload </td>
+   <td style="text-align:left;"> logical </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> if TRUE, uses the `googledrive` package to upload figures. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> uploadTo </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> if `upload = TRUE`, a Google Drive folder id corresponding to `.studyAreaName`. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> vegLeadingProportion </td>
+   <td style="text-align:left;"> numeric </td>
+   <td style="text-align:left;"> 0.8 </td>
+   <td style="text-align:left;"> 0 </td>
+   <td style="text-align:left;"> 1 </td>
+   <td style="text-align:left;"> a number that defines whether a species is leading for a given pixel </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> version </td>
+   <td style="text-align:left;"> integer </td>
+   <td style="text-align:left;"> 3 </td>
+   <td style="text-align:left;"> 2 </td>
+   <td style="text-align:left;"> 3 </td>
+   <td style="text-align:left;"> LandWeb model version (2 for runs using vegetation parameter forcings, else 3). </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> .makeTiles </td>
+   <td style="text-align:left;"> logical </td>
+   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> If `TRUE`, will generate leaflet tiles during postprocessing. </td>
+  </tr>
   <tr>
    <td style="text-align:left;"> .plots </td>
    <td style="text-align:left;"> character </td>
@@ -124,23 +248,23 @@ Provide a summary of user-visible parameters (Table \@ref(tab:moduleParams-LandW
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> Human-readable name for the study area used - e.g., a hash of the studyarea obtained using `reproducible::studyAreaName()` </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> .seed </td>
-   <td style="text-align:left;"> list </td>
-   <td style="text-align:left;">  </td>
-   <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> Named list of seeds to use for each event (names). </td>
+   <td style="text-align:left;"> Human-readable name for the study area used - e.g., a hash of the study area obtained using `reproducible::studyAreaName()` </td>
   </tr>
   <tr>
    <td style="text-align:left;"> .useCache </td>
+   <td style="text-align:left;"> character </td>
+   <td style="text-align:left;"> .inputOb.... </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> Names of events to be cached. </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> .useParallel </td>
    <td style="text-align:left;"> logical </td>
-   <td style="text-align:left;"> FALSE </td>
+   <td style="text-align:left;"> TRUE </td>
    <td style="text-align:left;"> NA </td>
    <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> Should caching of events or module be used? </td>
+   <td style="text-align:left;"> Logical. If `TRUE`, and there is more than one calculation to do at any stage, it will create and use a parallel cluster via `makeOptimalCluster()`. </td>
   </tr>
 </tbody>
 </table>
@@ -183,9 +307,9 @@ Description of the module outputs (Table \@ref(tab:moduleOutputs-LandWeb-summary
  </thead>
 <tbody>
   <tr>
-   <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> NA </td>
-   <td style="text-align:left;"> NA </td>
+   <td style="text-align:left;"> ml </td>
+   <td style="text-align:left;"> map </td>
+   <td style="text-align:left;"> map list object </td>
   </tr>
 </tbody>
 </table>

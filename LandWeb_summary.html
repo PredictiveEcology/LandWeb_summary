@@ -2866,8 +2866,8 @@ pre code {
   border-radius: 4px;
 }
 
-.tabset-dropdown > .nav-tabs > li.active:before {
-  content: "";
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
   font-family: 'Glyphicons Halflings';
   display: inline-block;
   padding: 10px;
@@ -2875,16 +2875,9 @@ pre code {
 }
 
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-  content: "";
-  border: none;
-}
-
-.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-  content: "";
+  content: "\e258";
   font-family: 'Glyphicons Halflings';
-  display: inline-block;
-  padding: 10px;
-  border-right: 1px solid #ddd;
+  border: none;
 }
 
 .tabset-dropdown > .nav-tabs > li.active {
@@ -3003,8 +2996,8 @@ div.tocify {
 
 
 <h1 class="title toc-ignore">LandWeb_summary Manual</h1>
-<h3 class="subtitle">v.0.0.0.9000</h3>
-<h4 class="date">Last updated: 2022-09-22</h4>
+<h3 class="subtitle">v.0.0.1</h3>
+<h4 class="date">Last updated: 2022-10-28</h4>
 
 </div>
 
@@ -3051,13 +3044,41 @@ sourceURL
 <tbody>
 <tr>
 <td style="text-align:left;">
-NA
+ml
+</td>
+<td style="text-align:left;">
+map
+</td>
+<td style="text-align:left;">
+map list object from LandWeb_preamble
 </td>
 <td style="text-align:left;">
 NA
 </td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sppColorVect
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+A named vector of colors to use for plotting. The names must be in <code>sim$sppEquiv[[P(sim)$sppEquivCol]]</code>, and should also contain a color for ‘Mixed’
+</td>
 <td style="text-align:left;">
 NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sppEquiv
+</td>
+<td style="text-align:left;">
+data.table
+</td>
+<td style="text-align:left;">
+table of species equivalencies. See <code>LandR::sppEquivalencies_CA</code>.NANA
 </td>
 <td style="text-align:left;">
 NA
@@ -3093,6 +3114,286 @@ paramDesc
 </tr>
 </thead>
 <tbody>
+<tr>
+<td style="text-align:left;">
+ageClasses
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+Young, I….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+descriptions/labels for age classes (seral stages)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ageClassCutOffs
+</td>
+<td style="text-align:left;">
+integer
+</td>
+<td style="text-align:left;">
+0, 40, 8….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+defines the age boundaries between age classes
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ageClassMaxAge
+</td>
+<td style="text-align:left;">
+integer
+</td>
+<td style="text-align:left;">
+400
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+maximum possible age
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+reps
+</td>
+<td style="text-align:left;">
+integer
+</td>
+<td style="text-align:left;">
+1, 2, 3,….
+</td>
+<td style="text-align:left;">
+1
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+number of replicates/runs per study area.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+simOutputPath
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+outputPa….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Directory specifying the location of the simulation outputs.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sppEquivCol
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+EN_gener….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+The column in <code>sim$sppEquiv</code> data.table to use as a naming convention
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+summaryInterval
+</td>
+<td style="text-align:left;">
+integer
+</td>
+<td style="text-align:left;">
+100
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+simulation time interval at which to take ‘snapshots’ used for summary analyses
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+summaryPeriod
+</td>
+<td style="text-align:left;">
+integer
+</td>
+<td style="text-align:left;">
+700, 1000
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+lower and upper end of the range of simulation times used for summary analyses
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+timeSeriesTimes
+</td>
+<td style="text-align:left;">
+integer
+</td>
+<td style="text-align:left;">
+601, 602….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+timesteps to use to build timeseries rasters showing leading cover change over time
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+upload
+</td>
+<td style="text-align:left;">
+logical
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+if TRUE, uses the <code>googledrive</code> package to upload figures.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+uploadTo
+</td>
+<td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+if <code>upload = TRUE</code>, a Google Drive folder id corresponding to <code>.studyAreaName</code>.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+vegLeadingProportion
+</td>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+0.8
+</td>
+<td style="text-align:left;">
+0
+</td>
+<td style="text-align:left;">
+1
+</td>
+<td style="text-align:left;">
+a number that defines whether a species is leading for a given pixel
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+version
+</td>
+<td style="text-align:left;">
+integer
+</td>
+<td style="text-align:left;">
+3
+</td>
+<td style="text-align:left;">
+2
+</td>
+<td style="text-align:left;">
+3
+</td>
+<td style="text-align:left;">
+LandWeb model version (2 for runs using vegetation parameter forcings, else 3).
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+.makeTiles
+</td>
+<td style="text-align:left;">
+logical
+</td>
+<td style="text-align:left;">
+FALSE
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+If <code>TRUE</code>, will generate leaflet tiles during postprocessing.
+</td>
+</tr>
 <tr>
 <td style="text-align:left;">
 .plots
@@ -3210,26 +3511,7 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-Human-readable name for the study area used - e.g., a hash of the studyarea obtained using <code>reproducible::studyAreaName()</code>
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-.seed
-</td>
-<td style="text-align:left;">
-list
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Named list of seeds to use for each event (names).
+Human-readable name for the study area used - e.g., a hash of the study area obtained using <code>reproducible::studyAreaName()</code>
 </td>
 </tr>
 <tr>
@@ -3237,10 +3519,30 @@ Named list of seeds to use for each event (names).
 .useCache
 </td>
 <td style="text-align:left;">
+character
+</td>
+<td style="text-align:left;">
+.inputOb….
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+NA
+</td>
+<td style="text-align:left;">
+Names of events to be cached.
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+.useParallel
+</td>
+<td style="text-align:left;">
 logical
 </td>
 <td style="text-align:left;">
-FALSE
+TRUE
 </td>
 <td style="text-align:left;">
 NA
@@ -3249,7 +3551,7 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-Should caching of events or module be used?
+Logical. If <code>TRUE</code>, and there is more than one calculation to do at any stage, it will create and use a parallel cluster via <code>makeOptimalCluster()</code>.
 </td>
 </tr>
 </tbody>
@@ -3304,13 +3606,13 @@ desc
 <tbody>
 <tr>
 <td style="text-align:left;">
-NA
+ml
 </td>
 <td style="text-align:left;">
-NA
+map
 </td>
 <td style="text-align:left;">
-NA
+map list object
 </td>
 </tr>
 </tbody>
