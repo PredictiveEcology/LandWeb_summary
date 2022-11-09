@@ -1,23 +1,36 @@
 postprocessLandWeb <- function(sim) {
   .tilePath <- getOption("map.tilePath", file.path(outputPath(sim), "tiles"))
 
-  vtmCC <- vegTypeMapGenerator(sim$speciesLayers, P(sim)$vegLeadingProportion, mixedType = 2,
-                               sppEquiv = sim$sppEquiv, sppEquivCol = P(sim)$sppEquivCol,
-                               colors = sim$sppColorVect, doAssertion = FALSE)
+  vtmCC <- Cache(vegTypeMapGenerator,
+                 x = sim$speciesLayers,
+                 vegLeadingProportion = P(sim)$vegLeadingProportion,
+                 mixedType = 2,
+                 sppEquiv = sim$sppEquiv,
+                 sppEquivCol = P(sim)$sppEquivCol,
+                 colors = sim$sppColorVect,
+                 doAssertion = FALSE)
 
-  fname <- file.path(outputPath(sim), "CurrentConditionVTM.grd")
-  writeRaster(vtmCC, fname, datatype = "INT1U", overwrite = TRUE)
+  fname1 <- file.path(outputPath(sim), "CurrentConditionVTM.grd")
+  #result1 <- future({
+    raster::writeRaster(vtmCC, fname1, datatype = "INT1U", overwrite = TRUE)
+  #}, label = paste0("write_CC_", P(sim)$.studyAreaName, "_VTM"), seed = TRUE)
 
   fname2 <- file.path(outputPath(sim), "CurrentConditionTSF.tif")
-  writeRaster(sim$ml[["CC TSF"]], fname2, datatype = "INT1U", overwrite = TRUE)
+  cc_tsf <- sim$ml[["CC TSF"]]
+  #result2 <- future({
+    raster::writeRaster(cc_tsf, fname2, datatype = "INT1U", overwrite = TRUE)
+  #}, label = paste0("write_CC_", P(sim)$.studyAreaName, "_TSF"), seed = TRUE)
+  rm(cc_tsf)
 
   sim$ml <- mapAdd(
-    map = sim$ml, layerName = "CC VTM", analysisGroup1 = "CC",
-    targetFile = asPath(fname),
+    map = sim$ml,
+    layerName = "CC VTM",
+    analysisGroup1 = "CC",
+    targetFile = asPath(fname1),
     destinationPath = asPath(outputPath(sim)),
     filename2 = asPath("CurrentConditionVTM_temp.grd"), ## TODO: remove this workaround
     tsf = asPath(fname2),
-    vtm = asPath(fname),
+    vtm = asPath(fname1),
     CC = TRUE,
     overwrite = TRUE,
     #useCache = "overwrite",
@@ -115,7 +128,8 @@ postprocessLandWeb <- function(sim) {
     outfile = file.path(outputPath(sim), "log", "LandWeb_summary_tsf_vtm.log"),
     overwrite = TRUE,
     #useCache = "overwrite",
-    leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE
+    leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE,
+    .clInit = P(sim)$.clInit
   )
 
   fml <- list(
@@ -140,7 +154,8 @@ postprocessLandWeb <- function(sim) {
     ageClassCutOffs = P(sim)$ageClassCutOffs,
     sppEquivCol = "EN_generic_short",
     sppEquiv = sim$sppEquiv,
-    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_LeadingVegTypeByAgeClass.log")
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_LeadingVegTypeByAgeClass.log"),
+    .clInit = P(sim)$.clInit
   )
 
   qs::qsave(sim$ml, fml[[2]])
@@ -156,7 +171,8 @@ postprocessLandWeb <- function(sim) {
     ageClassCutOffs = P(sim)$ageClassCutOffs,
     sppEquivCol = "EN_generic_short",
     sppEquiv = sim$sppEquiv,
-    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_LargePatches.log")
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_LargePatches.log"),
+    .clInit = P(sim)$.clInit
   )
 
   qs::qsave(sim$ml, fml[[3]])
