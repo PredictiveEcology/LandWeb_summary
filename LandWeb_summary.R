@@ -19,7 +19,7 @@ defineModule(sim, list(
                   "achubaty/amc@development",
                   "PredictiveEcology/LandR@development",
                   "PredictiveEcology/LandWebUtils@development (>= 0.1.4.9003)",
-                  "PredictiveEcology/map@development (>= 0.0.4.9004)",
+                  "PredictiveEcology/map@development (>= 0.0.4.9008)",
                   "PredictiveEcology/reproducible@development (>= 1.2.10)",
                   "PredictiveEcology/SpaDES.core@development (>= 1.1.0.9000)"),
   parameters = bindrows(
