@@ -77,11 +77,13 @@ defineModule(sim, list(
   inputObjects = bindrows(
     expectsInput("ml", "map",
                  desc = "map list object from LandWeb_preamble"),
+    expectsInput("speciesLayers", "RasterStack",
+                 desc = "initial percent cover raster layers used for simulation."),
     expectsInput("sppColorVect", "character",
                  desc = paste("A named vector of colors to use for plotting.",
                               "The names must be in `sim$sppEquiv[[P(sim)$sppEquivCol]]`,",
                               "and should also contain a color for 'Mixed'")),
-    expectsInput("sppEquiv", "data.table", NA, NA, NA,
+    expectsInput("sppEquiv", "data.table",
                  desc = "table of species equivalencies. See `LandR::sppEquivalencies_CA`.")
   ),
   outputObjects = bindrows(
@@ -180,7 +182,7 @@ Init <- function(sim) {
   mod$allouts <- fs::dir_ls(outputPath(sim), regexp = "vegType|TimeSince", recurse = 1, type = "file") %>%
     grep("gri|png|txt|xml", ., value = TRUE, invert = TRUE)
   mod$allouts2 <- grep(paste(paste0("year", paddedFloatToChar(
-    setdiff(P(sim)$timeSeriesTimes, mod$analysesOutputsTimes), padL = padL)), collapse = "|"),
+    setdiff(c(0, P(sim)$timeSeriesTimes), mod$analysesOutputsTimes), padL = padL)), collapse = "|"),
     mod$allouts, value = TRUE, invert = TRUE)
 
   filesUserHas <- mod$allouts2
@@ -198,7 +200,7 @@ Init <- function(sim) {
   # stopifnot(length(mod$allouts2) == 2 * length(P(sim)$reps) * length(mod$analysesOutputsTimes))
   if (!all(filesNeeded$exists)) {
     missing <- filesNeeded[filesNeeded$exists == FALSE, ]$file
-    stop("Some simulation files appear to be missing:\n", paste(missing, collapse = "\n"))
+    stop(sum(!filesNeeded$exists), " simulation files appear to be missing:\n", paste(missing, collapse = "\n"))
   }
 
   mod$layerName <- gsub(mod$allouts2, pattern = paste0(".*", outputPath(sim)), replacement = "")
