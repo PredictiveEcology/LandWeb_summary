@@ -11,15 +11,11 @@ postprocessLandWeb <- function(sim) {
                  doAssertion = FALSE)
 
   fname1 <- file.path(outputPath(sim), "CurrentConditionVTM.grd")
-  #result1 <- future({
-    raster::writeRaster(vtmCC, fname1, datatype = "INT1U", overwrite = TRUE)
-  #}, label = paste0("write_CC_", P(sim)$.studyAreaName, "_VTM"), seed = TRUE)
+  raster::writeRaster(vtmCC, fname1, datatype = "INT1U", overwrite = TRUE)
 
   fname2 <- file.path(outputPath(sim), "CurrentConditionTSF.tif")
   cc_tsf <- sim$ml[["CC TSF"]]
-  #result2 <- future({
-    raster::writeRaster(cc_tsf, fname2, datatype = "INT1U", overwrite = TRUE)
-  #}, label = paste0("write_CC_", P(sim)$.studyAreaName, "_TSF"), seed = TRUE)
+  raster::writeRaster(cc_tsf, fname2, datatype = "INT1U", overwrite = TRUE)
   rm(cc_tsf)
 
   sim$ml <- mapAdd(
@@ -28,7 +24,7 @@ postprocessLandWeb <- function(sim) {
     analysisGroup1 = "CC",
     targetFile = asPath(fname1),
     destinationPath = asPath(outputPath(sim)),
-    filename2 = asPath("CurrentConditionVTM_temp.grd"), ## TODO: remove this workaround
+    filename2 = NULL, ## don't write VTM to disk (rspatial/terra#976)
     tsf = asPath(fname2),
     vtm = asPath(fname1),
     CC = TRUE,
@@ -85,6 +81,21 @@ postprocessLandWeb <- function(sim) {
 
   if (any(grepl("NATLER", names(sim$ml)))) {
     ids <- which(grepl("NATLER", names(sim$ml)))
+    lapply(ids, function(id) {
+      if (is.null(sim$ml[[names(sim$ml)[id]]][["Name"]])) {
+        sim$ml[[names(sim$ml)[id]]][["Name"]] <- sim$ml[[names(sim$ml)[id]]][["Name.1"]]
+        sim$ml[[names(sim$ml)[id]]][["Name.1"]] <- sim$ml[[names(sim$ml)[id]]][["Name.2"]] <- NULL
+      }
+
+      if (is.null(sim$ml[[names(sim$ml)[id]]][["shinyLabel"]])) {
+        sim$ml[[names(sim$ml)[id]]][["shinyLabel"]] <- sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]]
+        sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]] <- sim$ml[[names(sim$ml)[id]]][["shinyLabel.2"]] <- NULL
+      }
+    })
+  }
+
+  if (any(grepl("NATLEZ", names(sim$ml)))) {
+    ids <- which(grepl("NATLEZ", names(sim$ml)))
     lapply(ids, function(id) {
       if (is.null(sim$ml[[names(sim$ml)[id]]][["Name"]])) {
         sim$ml[[names(sim$ml)[id]]][["Name"]] <- sim$ml[[names(sim$ml)[id]]][["Name.1"]]
