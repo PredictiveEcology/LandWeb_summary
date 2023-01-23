@@ -129,7 +129,7 @@ postprocessLandWeb <- function(sim) {
 
   sim$ml <- mapAdd(
     map = sim$ml,
-    layerName = mod$layerName,
+    layerName = names(ag1),
     analysisGroup1 = ag1,
     targetFile = asPath(mod$allouts2),
     destinationPath = asPath(dirname(mod$allouts2)),
