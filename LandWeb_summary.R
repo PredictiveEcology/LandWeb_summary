@@ -189,9 +189,10 @@ Init <- function(sim) {
 
   dirsExpected <- file.path(outputPath(sim), sprintf("rep%02d", P(sim)$reps))
   filesExpected <- as.character(sapply(dirsExpected, function(d) {
+    yr <- paddedFloatToChar(mod$analysesOutputsTimes, padL = padL)
     c(
-      file.path(d, sprintf("rstTimeSinceFire_year%04d.tif", mod$analysesOutputsTimes)),
-      file.path(d, sprintf("vegTypeMap_year%04d.grd", mod$analysesOutputsTimes))
+      file.path(d, paste0("rstTimeSinceFire_year", yr, ".tif")),
+      file.path(d, paste0("vegTypeMap_year", yr, ".grd"))
     )
   }))
 
