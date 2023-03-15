@@ -18,7 +18,7 @@ defineModule(sim, list(
                   "purrr", "qs", "raster", "sp",
                   "achubaty/amc@development",
                   "PredictiveEcology/LandR@development (>= 1.1.0.9015)",
-                  "PredictiveEcology/LandWebUtils@development (>= 0.1.4.9003)",
+                  "PredictiveEcology/LandWebUtils@development (>= 0.1.5.9001)",
                   "PredictiveEcology/map@development (>= 0.0.5)",
                   "PredictiveEcology/reproducible@development (>= 1.2.10)",
                   "PredictiveEcology/SpaDES.core@development (>= 1.1.0.9000)"),
@@ -172,7 +172,7 @@ Init <- function(sim) {
               grepl(paste("BlueRidge", "Edson", "FMANWT_", "LP_BC", "MillarWestern", "Mistik",
                           "prov", "Sundre", "Vanderwell", "WestFraser", "WeyCo", sep = "|"),
                     outputPath(sim))) {
-    if (grepl("provMB", outputPath(sim))) 4 else 3
+    if (grepl("provMB|provSK", outputPath(sim))) 4 else 3
   } else {
     4
   } ## TODO: confirm this is always true now

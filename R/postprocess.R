@@ -14,9 +14,11 @@ postprocessLandWeb <- function(sim) {
   raster::writeRaster(vtmCC, fname1, datatype = "INT1U", overwrite = TRUE)
 
   fname2 <- file.path(outputPath(sim), "CurrentConditionTSF.tif")
-  cc_tsf <- sim$ml[["CC TSF"]]
-  raster::writeRaster(cc_tsf, fname2, datatype = "INT1U", overwrite = TRUE)
-  rm(cc_tsf)
+  tsfCC <- sim$ml[["CC TSF"]]
+  raster::writeRaster(tsfCC, fname2, datatype = "INT1U", overwrite = TRUE)
+
+  stopifnot(compareRaster(tsfCC, vtmCC))
+  rm(tsfCC, vtmCC)
 
   sim$ml <- mapAdd(
     map = sim$ml,
@@ -33,7 +35,7 @@ postprocessLandWeb <- function(sim) {
     leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE
   )
 
-  ## TODO: WORKAROUND for some funny business with col names.
+  ## TODO: WORKAROUND for some funny business with col names ---------------------------------------
   if (any(grepl("ANSR", names(sim$ml)))) {
     ids <- which(grepl("ANSR", names(sim$ml)))
     lapply(ids, function(id) {
@@ -64,17 +66,32 @@ postprocessLandWeb <- function(sim) {
     })
   }
 
-  if (any(grepl("NWTER", names(sim$ml)))) {
-    ids <- which(grepl("NWTER", names(sim$ml)))
+  if (any(grepl("Caribou$|Caribou Joined", names(sim$ml)))) { ## be sure not to include "LandWeb Caribou Ranges" polygon
+    ids <- which(grepl("Caribou$|Caribou Joined", names(sim$ml)))
     lapply(ids, function(id) {
       if (is.null(sim$ml[[names(sim$ml)[id]]][["Name"]])) {
-        sim$ml[[names(sim$ml)[id]]][["Name"]] <- sim$ml[[names(sim$ml)[id]]][["Name.1"]]
-        sim$ml[[names(sim$ml)[id]]][["Name.1"]] <- sim$ml[[names(sim$ml)[id]]][["Name.2"]] <- NULL
+        sim$ml[[names(sim$ml)[id]]][["Name"]] <<- sim$ml[[names(sim$ml)[id]]][["Name.1"]]
+        sim$ml[[names(sim$ml)[id]]][["Name.1"]] <<- sim$ml[[names(sim$ml)[id]]][["Name.2"]] <- NULL
       }
 
       if (is.null(sim$ml[[names(sim$ml)[id]]][["shinyLabel"]])) {
-        sim$ml[[names(sim$ml)[id]]][["shinyLabel"]] <- sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]]
-        sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]] <- sim$ml[[names(sim$ml)[id]]][["shinyLabel.2"]] <- NULL
+        sim$ml[[names(sim$ml)[id]]][["shinyLabel"]] <<- sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]]
+        sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]] <<- sim$ml[[names(sim$ml)[id]]][["shinyLabel.2"]] <- NULL
+      }
+    })
+  }
+
+  if (any(grepl("FMAs$|FMA Boundaries Updated", names(sim$ml)))) {
+    ids <- which(grepl("FMAs$|FMA Boundaries Updated", names(sim$ml)))
+    lapply(ids, function(id) {
+      if (is.null(sim$ml[[names(sim$ml)[id]]][["Name"]])) {
+        sim$ml[[names(sim$ml)[id]]][["Name"]] <<- sim$ml[[names(sim$ml)[id]]][["Name.1"]]
+        sim$ml[[names(sim$ml)[id]]][["Name.1"]] <<- sim$ml[[names(sim$ml)[id]]][["Name.2"]] <- NULL
+      }
+
+      if (is.null(sim$ml[[names(sim$ml)[id]]][["shinyLabel"]])) {
+        sim$ml[[names(sim$ml)[id]]][["shinyLabel"]] <<- sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]]
+        sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]] <<- sim$ml[[names(sim$ml)[id]]][["shinyLabel.2"]] <- NULL
       }
     })
   }
@@ -109,21 +126,23 @@ postprocessLandWeb <- function(sim) {
     })
   }
 
-  if (any(grepl("Caribou$|Caribou Joined", names(sim$ml)))) { ## be sure not to include "LandWeb Caribou Ranges" polygon
-    ids <- which(grepl("Caribou$|Caribou Joined", names(sim$ml)))
+  if (any(grepl("NWTER", names(sim$ml)))) {
+    ids <- which(grepl("NWTER", names(sim$ml)))
     lapply(ids, function(id) {
       if (is.null(sim$ml[[names(sim$ml)[id]]][["Name"]])) {
-        sim$ml[[names(sim$ml)[id]]][["Name"]] <<- sim$ml[[names(sim$ml)[id]]][["Name.1"]]
-        sim$ml[[names(sim$ml)[id]]][["Name.1"]] <<- sim$ml[[names(sim$ml)[id]]][["Name.2"]] <- NULL
+        sim$ml[[names(sim$ml)[id]]][["Name"]] <- sim$ml[[names(sim$ml)[id]]][["Name.1"]]
+        sim$ml[[names(sim$ml)[id]]][["Name.1"]] <- sim$ml[[names(sim$ml)[id]]][["Name.2"]] <- NULL
       }
 
       if (is.null(sim$ml[[names(sim$ml)[id]]][["shinyLabel"]])) {
-        sim$ml[[names(sim$ml)[id]]][["shinyLabel"]] <<- sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]]
-        sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]] <<- sim$ml[[names(sim$ml)[id]]][["shinyLabel.2"]] <- NULL
+        sim$ml[[names(sim$ml)[id]]][["shinyLabel"]] <- sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]]
+        sim$ml[[names(sim$ml)[id]]][["shinyLabel.1"]] <- sim$ml[[names(sim$ml)[id]]][["shinyLabel.2"]] <- NULL
       }
     })
   }
+  ## END: WORKAROUND for some funny business with col names ----------------------------------------
 
+  ## analysis group 1
   ag1 <- gsub(mod$layerName, pattern = "(.*)_.*_(.*)\\..*", replacement = "\\1_\\2") %>%
     grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
 
