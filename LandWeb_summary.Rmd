@@ -64,7 +64,7 @@ Table \@ref(tab:moduleInputs-LandWeb-summary) shows the full list of module inpu
 df_inputs <- SpaDES.core::moduleInputs("LandWeb_summary", "..")
 knitr::kable(df_inputs,
              caption = "List of (ref:LandWeb-summary) input objects and their description.") %>%
-  kableExtra::kable_styling(latex_options = "scale_down", full_width = TRUE)
+  kableExtra::kable_styling(latex_options = "scale_down", full_width = FALSE)
 ```
 
 Provide a summary of user-visible parameters (Table \@ref(tab:moduleParams-LandWeb-summary))
@@ -73,7 +73,7 @@ Provide a summary of user-visible parameters (Table \@ref(tab:moduleParams-LandW
 ```{r moduleParams-LandWeb-summary, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
 df_params <- SpaDES.core::moduleParams("LandWeb_summary", "..")
 knitr::kable(df_params, caption = "List of (ref:LandWeb-summary) parameters and their description.") %>%
-  kableExtra::kable_styling(latex_options = "scale_down", full_width = TRUE)
+  kableExtra::kable_styling(latex_options = "scale_down", full_width = FALSE)
 ```
 
 ### Module outputs
@@ -94,7 +94,7 @@ Description of the module outputs (Table \@ref(tab:moduleOutputs-LandWeb-summary
 ```{r moduleOutputs-LandWeb-summary, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
 df_outputs <- SpaDES.core::moduleOutputs("LandWeb_summary", "..")
 knitr::kable(df_outputs, caption = "List of (ref:LandWeb-summary) outputs and their description.") %>%
-  kableExtra::kable_styling(latex_options = "scale_down", full_width = TRUE)
+  kableExtra::kable_styling(latex_options = "scale_down", full_width = FALSE)
 ```
 
 ### Links to other modules
