@@ -218,6 +218,9 @@ Init <- function(sim) {
   mod$vtmTimeSeries <- gsub(".*TimeSinceFire.*", NA, mod$allouts) %>%
     grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
 
+  mod$flm <- file.path(outputPath(sim), "rstFlammable.tif")
+  writeRaster(sim$flammableMap, mod$flm, overwrite = TRUE)
+
   # ! ----- STOP EDITING ----- ! #
 
   return(invisible(sim))
