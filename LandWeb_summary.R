@@ -75,6 +75,10 @@ defineModule(sim, list(
                                  "it will create and use a parallel cluster via `makeOptimalCluster()`."))
   ),
   inputObjects = bindrows(
+    expectsInput("flammableMap", "Raster",
+                 desc = paste("A raster layer, with 0, 1 and NA, where 1 indicates areas",
+                              "that are flammable, 0 not flammable (e.g., lakes)",
+                              "and NA not applicable (e.g., masked)")),
     expectsInput("ml", "map",
                  desc = "map list object from LandWeb_preamble"),
     expectsInput("speciesLayers", "RasterStack",
@@ -107,32 +111,32 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
       }
     },
     animation = {
-      ## create tsf stack for animation
+      ## create sam stack for animation
       ## -- pop it into a future and come back to it after rest of postprocessing completed
-      if (is.null(mod$animation_tsf)) {
+      if (is.null(mod$animation_sam)) {
         sA <- studyArea(sim$ml, 2)
 
-        tsfStack <- raster::stack(mod$tsfTimeSeries)
+        samStack <- raster::stack(mod$samTimeSeries)
         brks <- sort(c(1L, P(sim)$ageClassCutOffs, P(sim)$ageClassMaxAge))
         cols <- RColorBrewer::brewer.pal(5, "RdYlGn")
 
-        gifNameTSF <- file.path(normPath(outputPath(sim)), "animation_tsf.gif")
-        mod$animation_tsf <- future({
+        gifNamesam <- file.path(normPath(outputPath(sim)), "animation_sam.gif")
+        mod$animation_sam <- future({
           ## TODO: Error in magick_image_animate(image, as.integer(delay), as.integer(loop),  :
           ## R: cache resources exhausted `/tmp/RtmpbuP1HC/Rplot1.png' @ error/cache.c/OpenPixelCache/4083
           animation::saveGIF(ani.height = 1200, ani.width = 1200, interval = 1.0,
-                             movie.name = gifNameTSF, expr = {
-                               for (i in seq(quickPlot::numLayers(tsfStack))) {
-                                 raster::plot(raster::mask(tsfStack[[i]], sA), breaks = brks, col = cols)
+                             movie.name = gifNamesam, expr = {
+                               for (i in seq(quickPlot::numLayers(samStack))) {
+                                 raster::plot(raster::mask(samStack[[i]], sA), breaks = brks, col = cols)
                                }
                              })
-          file.exists(gifNameTSF)
-        }, label = paste0("animation_", P(sim)$.studyAreaName, "_TSF"), seed = TRUE)
+          file.exists(gifNamesam)
+        }, label = paste0("animation_", P(sim)$.studyAreaName, "_sam"), seed = TRUE)
 
         sim <- scheduleEvent(sim, time(sim) + 1, "LandWeb_summary", "animation", eventPriority = .last())
       } else {
-        if (isFALSE(value(mod$animation_tsf))) {
-          warning("TSF animation failed.")
+        if (isFALSE(value(mod$animation_sam))) {
+          warning("SAM animation failed.")
         }
       }
     },
@@ -179,7 +183,7 @@ Init <- function(sim) {
 
   mod$analysesOutputsTimes <- analysesOutputsTimes(P(sim)$summaryPeriod, P(sim)$summaryInterval)
 
-  mod$allouts <- fs::dir_ls(outputPath(sim), regexp = "vegType|TimeSince", recurse = 1, type = "file") %>%
+  mod$allouts <- fs::dir_ls(outputPath(sim), regexp = "vegType|standAge", recurse = 1, type = "file") %>%
     grep("gri|png|txt|xml", ., value = TRUE, invert = TRUE)
   mod$allouts2 <- grep(paste(paste0("year", paddedFloatToChar(
     setdiff(c(0, P(sim)$timeSeriesTimes), mod$analysesOutputsTimes), padL = padL)), collapse = "|"),
@@ -191,7 +195,7 @@ Init <- function(sim) {
   filesExpected <- as.character(sapply(dirsExpected, function(d) {
     yr <- paddedFloatToChar(mod$analysesOutputsTimes, padL = padL)
     c(
-      file.path(d, paste0("rstTimeSinceFire_year", yr, ".tif")),
+      file.path(d, paste0("standAgeMap_year", yr, ".tif")),
       file.path(d, paste0("vegTypeMap_year", yr, ".grd"))
     )
   }))
@@ -208,14 +212,14 @@ Init <- function(sim) {
   mod$layerName <- gsub(mod$layerName, pattern = "[/\\]", replacement = "_")
   mod$layerName <- gsub(mod$layerName, pattern = "^_", replacement = "")
 
-  mod$tsf <- gsub(".*vegTypeMap.*", NA, mod$allouts2) %>%
+  mod$sam <- gsub(".*vegTypeMap.*", NA, mod$allouts2) %>%
     grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
-  mod$vtm <- gsub(".*TimeSinceFire.*", NA, mod$allouts2) %>%
+  mod$vtm <- gsub(".*standAgeMap.*", NA, mod$allouts2) %>%
     grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
 
-  mod$tsfTimeSeries <- gsub(".*vegTypeMap.*", NA, mod$allouts) %>%
+  mod$samTimeSeries <- gsub(".*vegTypeMap.*", NA, mod$allouts) %>%
     grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
-  mod$vtmTimeSeries <- gsub(".*TimeSinceFire.*", NA, mod$allouts) %>%
+  mod$vtmTimeSeries <- gsub(".*standAgeMap.*", NA, mod$allouts) %>%
     grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
 
   mod$flm <- file.path(outputPath(sim), "rstFlammable.tif")

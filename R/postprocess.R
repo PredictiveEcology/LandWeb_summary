@@ -13,12 +13,12 @@ postprocessLandWeb <- function(sim) {
   fname1 <- file.path(outputPath(sim), "CurrentConditionVTM.grd")
   raster::writeRaster(vtmCC, fname1, datatype = "INT1U", overwrite = TRUE)
 
-  fname2 <- file.path(outputPath(sim), "CurrentConditionTSF.tif")
-  tsfCC <- sim$ml[["CC TSF"]]
-  raster::writeRaster(tsfCC, fname2, datatype = "INT1U", overwrite = TRUE)
+  fname2 <- file.path(outputPath(sim), "CurrentConditionSAM.tif")
+  samCC <- sim$ml[["CC TSF"]] ## TODO: rename in preamble, but beware backwards compatibility!
+  raster::writeRaster(samCC, fname2, datatype = "INT1U", overwrite = TRUE)
 
-  stopifnot(compareRaster(tsfCC, vtmCC))
-  rm(tsfCC, vtmCC)
+  stopifnot(compareRaster(samCC, vtmCC))
+  rm(samCC, vtmCC)
 
   sim$ml <- mapAdd(
     map = sim$ml,
@@ -27,7 +27,7 @@ postprocessLandWeb <- function(sim) {
     targetFile = asPath(fname1),
     destinationPath = asPath(outputPath(sim)),
     filename2 = NULL, ## don't write VTM to disk (rspatial/terra#976)
-    tsf = asPath(fname2),
+    sam = asPath(fname2),
     vtm = asPath(fname1),
     CC = TRUE,
     overwrite = TRUE,
@@ -153,9 +153,9 @@ postprocessLandWeb <- function(sim) {
     targetFile = asPath(mod$allouts2),
     destinationPath = asPath(dirname(mod$allouts2)),
     filename2 = NULL,
-    tsf = asPath(mod$tsf),
+    tsf = asPath(mod$sam),
     vtm = asPath(mod$vtm),
-    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_tsf_vtm.log"),
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_sam_vtm.log"),
     overwrite = TRUE,
     #useCache = "overwrite",
     leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE,
@@ -268,7 +268,7 @@ postprocessLandWeb <- function(sim) {
 
   ## TODO: archives (zip) instead of indiv files
   # files2upload <- c(
-  #   sim$ml@metadata$tsf,
+  #   sim$ml@metadata$sam,
   #   sim$ml@metadata$vtm,
   #   list.files(file.path(outputPath(sim), "boxplots"), recursive = TRUE),
   #   list.files(file.path(outputPath(sim), "histograms"), recursive = TRUE)
