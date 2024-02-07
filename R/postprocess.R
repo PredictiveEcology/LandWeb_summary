@@ -143,8 +143,8 @@ postprocessLandWeb <- function(sim) {
   ## END: WORKAROUND for some funny business with col names ----------------------------------------
 
   ## analysis group 1
-  ag1 <- gsub(mod$layerName, pattern = "(.*)_.*_(.*)\\..*", replacement = "\\1_\\2") %>%
-    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
+  ag1 <- gsub(mod$layerName, pattern = "(.*)_.*_(.*)\\..*", replacement = "\\1_\\2") |>
+    grep(paste(mod$analysesOutputsTimes, collapse = "|"), x = _, value = TRUE)
 
   sim$ml <- mapAdd(
     map = sim$ml,
@@ -210,14 +210,14 @@ postprocessLandWeb <- function(sim) {
 
   options(map.maxNumCores = prevNcores)
 
-  histDirOld <- file.path(outputPath(sim), "hists") %>% normPath(.)
-  histDirNew <- file.path(outputPath(sim), "histograms") %>% normPath(.)
+  histDirOld <- file.path(outputPath(sim), "hists") |> normPath()
+  histDirNew <- file.path(outputPath(sim), "histograms") |> normPath()
   if (dir.exists(histDirOld))
     file.rename(from = histDirOld, to = histDirNew)
 
   ## 'archive' previous largePatches results following bugfix (2021-05-05)
   histDirArchived <- paste0("histograms_archived_", format(Sys.Date(), "%Y-%m-%d"))
-  histDirArchived <- file.path(outputPath(sim), histDirArchived) %>% normPath(.)
+  histDirArchived <- file.path(outputPath(sim), histDirArchived) |> normPath()
   if (dir.exists(histDirNew) && !dir.exists(histDirArchived))
     file.rename(from = histDirNew, to = histDirArchived)
 

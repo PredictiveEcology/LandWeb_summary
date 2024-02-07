@@ -18,7 +18,7 @@ defineModule(sim, list(
                   "purrr", "qs", "raster", "sp",
                   "achubaty/amc@development",
                   "PredictiveEcology/LandR@development (>= 1.1.0.9015)",
-                  "PredictiveEcology/LandWebUtils@development (>= 0.1.5.9001)",
+                  "PredictiveEcology/LandWebUtils@development (>= 1.0.0)",
                   "PredictiveEcology/map@development (>= 0.0.5)",
                   "PredictiveEcology/reproducible@development (>= 1.2.10)",
                   "PredictiveEcology/SpaDES.core@development (>= 1.1.0.9000)"),
@@ -183,8 +183,8 @@ Init <- function(sim) {
 
   mod$analysesOutputsTimes <- analysesOutputsTimes(P(sim)$summaryPeriod, P(sim)$summaryInterval)
 
-  mod$allouts <- fs::dir_ls(outputPath(sim), regexp = "vegType|standAge", recurse = 1, type = "file") %>%
-    grep("gri|png|txt|xml", ., value = TRUE, invert = TRUE)
+  mod$allouts <- fs::dir_ls(outputPath(sim), regexp = "vegType|standAge", recurse = 1, type = "file") |>
+    grep("gri|png|txt|xml", x = _, value = TRUE, invert = TRUE)
   mod$allouts2 <- grep(paste(paste0("year", paddedFloatToChar(
     setdiff(c(0, P(sim)$timeSeriesTimes), mod$analysesOutputsTimes), padL = padL)), collapse = "|"),
     mod$allouts, value = TRUE, invert = TRUE)
@@ -212,15 +212,15 @@ Init <- function(sim) {
   mod$layerName <- gsub(mod$layerName, pattern = "[/\\]", replacement = "_")
   mod$layerName <- gsub(mod$layerName, pattern = "^_", replacement = "")
 
-  mod$sam <- gsub(".*vegTypeMap.*", NA, mod$allouts2) %>%
-    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
-  mod$vtm <- gsub(".*standAgeMap.*", NA, mod$allouts2) %>%
-    grep(paste(mod$analysesOutputsTimes, collapse = "|"), ., value = TRUE)
+  mod$sam <- gsub(".*vegTypeMap.*", NA, mod$allouts2) |>
+    grep(paste(mod$analysesOutputsTimes, collapse = "|"), x = _, value = TRUE)
+  mod$vtm <- gsub(".*standAgeMap.*", NA, mod$allouts2) |>
+    grep(paste(mod$analysesOutputsTimes, collapse = "|"), x = _, value = TRUE)
 
-  mod$samTimeSeries <- gsub(".*vegTypeMap.*", NA, mod$allouts) %>%
-    grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
-  mod$vtmTimeSeries <- gsub(".*standAgeMap.*", NA, mod$allouts) %>%
-    grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), ., value = TRUE)
+  mod$samTimeSeries <- gsub(".*vegTypeMap.*", NA, mod$allouts) |>
+    grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), x = _, value = TRUE)
+  mod$vtmTimeSeries <- gsub(".*standAgeMap.*", NA, mod$allouts) |>
+    grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), x = _, value = TRUE)
 
   mod$flm <- file.path(outputPath(sim), "rstFlammable.tif")
   writeRaster(sim$flammableMap, mod$flm, overwrite = TRUE)
