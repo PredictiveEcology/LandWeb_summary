@@ -235,8 +235,11 @@ Init <- function(sim) {
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
   # ! ----- EDIT BELOW ----- ! #
-
-  tmp <- loadSimList(file.path(outputPath(sim), paste0("simOutPreamble_", P(sim)$.studyAreaName, ".qs")))
+  fsim <- file.path(outputPath(sim), paste0("simOutPreamble_", P(sim)$.studyAreaName, ".qs"))
+  if (!file.exists(fsim)) {
+    fsim <- file.path(tools::file_path_sans_ext(fsim), ".rds") ## fallback to rds if qs not used
+  }
+  tmp <- loadSimList(fsim)
 
   if (!suppliedElsewhere("ml", sim)) {
     sim$ml <- tmp$ml ## TODO: can't load ml objects from qs file !!
