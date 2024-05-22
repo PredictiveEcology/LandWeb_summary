@@ -10,12 +10,12 @@ postprocessLandWeb <- function(sim) {
                  colors = sim$sppColorVect,
                  doAssertion = FALSE)
 
-  fname1 <- file.path(outputPath(sim), "CurrentConditionVTM.grd")
-  raster::writeRaster(vtmCC, fname1, datatype = "INT1U", overwrite = TRUE)
+  fvtm0 <- file.path(outputPath(sim), "CurrentConditionVTM.grd")
+  raster::writeRaster(vtmCC, fvtm0, datatype = "INT1U", overwrite = TRUE)
 
-  fname2 <- file.path(outputPath(sim), "CurrentConditionSAM.tif")
-  samCC <- sim$ml[["CC TSF"]] ## TODO: rename in preamble, but beware backwards compatibility!
-  raster::writeRaster(samCC, fname2, datatype = "INT1U", overwrite = TRUE)
+  fsam0 <- file.path(outputPath(sim), "CurrentConditionSAM.tif")
+  samCC <- sim$ml[["CC TSF"]]
+  raster::writeRaster(samCC, fsam0, datatype = "INT1U", overwrite = TRUE)
 
   stopifnot(compareRaster(samCC, vtmCC))
   rm(samCC, vtmCC)
@@ -24,11 +24,11 @@ postprocessLandWeb <- function(sim) {
     map = sim$ml,
     layerName = "CC VTM",
     analysisGroup1 = "CC",
-    targetFile = asPath(fname1),
+    targetFile = asPath(fvtm0),
     destinationPath = asPath(outputPath(sim)),
     filename2 = NULL, ## don't write VTM to disk (rspatial/terra#976)
-    sam = asPath(fname2),
-    vtm = asPath(fname1),
+    sam = asPath(fsam0),
+    vtm = asPath(fvtm0),
     CC = TRUE,
     overwrite = TRUE,
     #useCache = "overwrite",

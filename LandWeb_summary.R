@@ -9,7 +9,7 @@ defineModule(sim, list(
     person(c("Alex", "M."), "Chubaty", email = "achubaty@for-cast.ca", role = c("aut"))
   ),
   childModules = character(0),
-  version = list(LandWeb_summary = "0.0.1"),
+  version = list(LandWeb_summary = "1.0.0"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -35,6 +35,8 @@ defineModule(sim, list(
                     "Directory specifying the location of the simulation outputs."),
     defineParameter("sppEquivCol", "character", "EN_generic_short", NA, NA,
                     "The column in `sim$sppEquiv` data.table to use as a naming convention"),
+    defineParameter("standAgeMapFromCohorts", "logical", TRUE, NA, NA,
+                    "should stand age maps be calculated from `cohortData` instead of time since fire"),
     defineParameter("summaryInterval", "integer", 100L, NA, NA,
                     "simulation time interval at which to take 'snapshots' used for summary analyses"),
     defineParameter("summaryPeriod", "integer", c(700L, 1000L), NA, NA,
@@ -183,7 +185,19 @@ Init <- function(sim) {
 
   mod$analysesOutputsTimes <- analysesOutputsTimes(P(sim)$summaryPeriod, P(sim)$summaryInterval)
 
-  mod$allouts <- fs::dir_ls(outputPath(sim), regexp = "vegType|standAge", recurse = 1, type = "file") |>
+  if (isTRUE(P(sim)$standAgeMapFromCohorts)) {
+    standAgeFile <- "standAgeMap"
+    standAgeRegex <- "standAge"
+  } else {
+    standAgeFile <- "rstTimeSinceFire"
+    standAgeRegex <- "TimeSinceFire"
+  }
+
+  vegTypeFile <- "vegTypeMap"
+  vegTypeRegex <- "vegType"
+
+  mod$allouts <- fs::dir_ls(outputPath(sim), regexp = paste0(vegTypeRegex, "|", standAgeRegex),
+                            recurse = 1, type = "file") |>
     grep("gri|png|txt|xml", x = _, value = TRUE, invert = TRUE)
   mod$allouts2 <- grep(paste(paste0("year", paddedFloatToChar(
     setdiff(c(0, P(sim)$timeSeriesTimes), mod$analysesOutputsTimes), padL = padL)), collapse = "|"),
@@ -195,8 +209,8 @@ Init <- function(sim) {
   filesExpected <- as.character(sapply(dirsExpected, function(d) {
     yr <- paddedFloatToChar(mod$analysesOutputsTimes, padL = padL)
     c(
-      file.path(d, paste0("standAgeMap_year", yr, ".tif")),
-      file.path(d, paste0("vegTypeMap_year", yr, ".grd"))
+      file.path(d, paste0(standAgeFile, "_year", yr, ".tif")),
+      file.path(d, paste0(vegTypeFile, "_year", yr, ".grd"))
     )
   }))
 
@@ -212,14 +226,14 @@ Init <- function(sim) {
   mod$layerName <- gsub(mod$layerName, pattern = "[/\\]", replacement = "_")
   mod$layerName <- gsub(mod$layerName, pattern = "^_", replacement = "")
 
-  mod$sam <- gsub(".*vegTypeMap.*", NA, mod$allouts2) |>
+  mod$sam <- gsub(paste0(".*", vegTypeFile, ".*"), NA, mod$allouts2) |>
     grep(paste(mod$analysesOutputsTimes, collapse = "|"), x = _, value = TRUE)
-  mod$vtm <- gsub(".*standAgeMap.*", NA, mod$allouts2) |>
+  mod$vtm <- gsub(paste0(".*", standAgeFile, ".*"), NA, mod$allouts2) |>
     grep(paste(mod$analysesOutputsTimes, collapse = "|"), x = _, value = TRUE)
 
-  mod$samTimeSeries <- gsub(".*vegTypeMap.*", NA, mod$allouts) |>
+  mod$samTimeSeries <- gsub(paste0(".*", vegTypeFile, ".*"), NA, mod$allouts) |>
     grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), x = _, value = TRUE)
-  mod$vtmTimeSeries <- gsub(".*standAgeMap.*", NA, mod$allouts) |>
+  mod$vtmTimeSeries <- gsub(paste0(".*", standAgeFile, ".*"), NA, mod$allouts) |>
     grep(paste(P(sim)$timeSeriesTimes, collapse = "|"), x = _, value = TRUE)
 
   mod$flm <- file.path(outputPath(sim), "rstFlammable.tif")
