@@ -35,7 +35,7 @@ defineModule(sim, list(
                     "Directory specifying the location of the simulation outputs."),
     defineParameter("sppEquivCol", "character", "EN_generic_short", NA, NA,
                     "The column in `sim$sppEquiv` data.table to use as a naming convention"),
-    defineParameter("standAgeMapFromCohorts", "logical", TRUE, NA, NA,
+    defineParameter("standAgeMapFromCohorts", "logical", FALSE, NA, NA,
                     "should stand age maps be calculated from `cohortData` instead of time since fire"),
     defineParameter("summaryInterval", "integer", 100L, NA, NA,
                     "simulation time interval at which to take 'snapshots' used for summary analyses"),
