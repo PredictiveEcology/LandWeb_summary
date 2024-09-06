@@ -13,7 +13,11 @@ postprocessLandWeb <- function(sim) {
   fvtm0 <- file.path(outputPath(sim), "CurrentConditionVTM.grd")
   raster::writeRaster(vtmCC, fvtm0, datatype = "INT1U", overwrite = TRUE)
 
-  fsam0 <- file.path(outputPath(sim), "CurrentConditionSAM.tif")
+  if (isTRUE(P(sim)$standAgeMapFromCohorts)) {
+    fsam0 <- file.path(outputPath(sim), "CurrentConditionSAM.tif")
+  } else {
+    fsam0 <- file.path(outputPath(sim), "CurrentConditionTSF.tif")
+  }
   samCC <- sim$ml[["CC TSF"]]
   raster::writeRaster(samCC, fsam0, datatype = "INT1U", overwrite = TRUE)
 

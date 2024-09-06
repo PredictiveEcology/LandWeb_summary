@@ -18,7 +18,7 @@ defineModule(sim, list(
                   "purrr", "qs", "raster", "sp",
                   "achubaty/amc@development",
                   "PredictiveEcology/LandR@development (>= 1.1.0.9015)",
-                  "PredictiveEcology/LandWebUtils@development (>= 1.0.0)",
+                  "PredictiveEcology/LandWebUtils@development (>= 1.0.1)",
                   "PredictiveEcology/map@development (>= 0.0.5)",
                   "PredictiveEcology/reproducible@development (>= 1.2.10)",
                   "PredictiveEcology/SpaDES.core@development (>= 1.1.0.9000)"),
