@@ -9,13 +9,13 @@ defineModule(sim, list(
     person(c("Alex", "M."), "Chubaty", email = "achubaty@for-cast.ca", role = c("aut"))
   ),
   childModules = character(0),
-  version = list(LandWeb_summary = "1.0.0"),
+  version = list(LandWeb_summary = "1.0.1"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.md", "LandWeb_summary.Rmd"), ## README generated from module Rmd
   reqdPkgs = list("animation", "data.table", "fs", "future", "future.callr", "ggplot2", "googledrive",
-                  "purrr", "qs", "raster", "sp",
+                  "purrr", "qs", "raster", "sp", "withr",
                   "achubaty/amc@development",
                   "PredictiveEcology/LandR@development (>= 1.1.0.9015)",
                   "PredictiveEcology/LandWebUtils@development (>= 1.0.1)",

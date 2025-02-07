@@ -150,21 +150,25 @@ postprocessLandWeb <- function(sim) {
   ag1 <- gsub(mod$layerName, pattern = "(.*)_.*_(.*)\\..*", replacement = "\\1_\\2") |>
     grep(paste(mod$analysesOutputsTimes, collapse = "|"), x = _, value = TRUE)
 
-  sim$ml <- mapAdd(
-    map = sim$ml,
-    layerName = names(ag1),
-    analysisGroup1 = ag1,
-    targetFile = asPath(mod$allouts2),
-    destinationPath = asPath(dirname(mod$allouts2)),
-    filename2 = NULL,
-    tsf = asPath(mod$sam),
-    vtm = asPath(mod$vtm),
-    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_sam_vtm.log"),
-    overwrite = TRUE,
-    #useCache = "overwrite",
-    leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE,
-    .clInit = P(sim)$.clInit
-  )
+  ## TODO: cache problems
+  ## Error in namesObj[allLower] <- paste0("abALLLOWER", namesObj[allLower]) :
+  ##   NAs are not allowed in subscripted assignments
+  withr::with_options(list(reproducible.useCache = FALSE), {
+    sim$ml <- mapAdd(
+      map = sim$ml,
+      layerName = names(ag1),
+      analysisGroup1 = ag1,
+      targetFile = asPath(mod$allouts2),
+      destinationPath = asPath(dirname(mod$allouts2)),
+      filename2 = NULL,
+      tsf = asPath(mod$sam),
+      vtm = asPath(mod$vtm),
+      outfile = file.path(outputPath(sim), "log", "LandWeb_summary_sam_vtm.log"),
+      overwrite = TRUE,
+      leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE,
+      .clInit = P(sim)$.clInit
+    )
+  })
 
   fml <- list(
     simFile("ml", outputPath(sim), ext = "qs"),
