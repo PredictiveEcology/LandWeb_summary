@@ -5,20 +5,20 @@ defineModule(sim, list(
                       "overlaid by indicator of current forest conditions."),
   keywords = c("LandWeb", "NRV"),
   authors = c(
-    person(c("Eliot", "J", "B"), "McIntire", email = "eliot.mcintire@nrcan-rncan.gc.ca", role = c("aut", "cre")),
-    person(c("Alex", "M."), "Chubaty", email = "achubaty@for-cast.ca", role = c("aut"))
+    person(c("Eliot", "J", "B"), "McIntire", email = "eliot.mcintire@nrcan-rncan.gc.ca", role = "aut"),
+    person(c("Alex", "M."), "Chubaty", email = "achubaty@for-cast.ca", role = c("aut", "cre"))
   ),
   childModules = character(0),
-  version = list(LandWeb_summary = "1.0.1"),
+  version = list(LandWeb_summary = "1.0.2"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
   documentation = list("README.md", "LandWeb_summary.Rmd"), ## README generated from module Rmd
   reqdPkgs = list("animation", "data.table", "fs", "future", "future.callr", "ggplot2", "googledrive",
-                  "purrr", "qs", "raster", "sp", "withr",
+                  "purrr", "qs", "raster", "sp", ## TODO: qs will be superceded by qs2
                   "achubaty/amc@development",
                   "PredictiveEcology/LandR@development (>= 1.1.0.9015)",
-                  "PredictiveEcology/LandWebUtils@development (>= 1.0.1)",
+                  "PredictiveEcology/LandWebUtils@development (>= 1.0.3)",
                   "PredictiveEcology/map@development (>= 0.0.5)",
                   "PredictiveEcology/reproducible@development (>= 1.2.10)",
                   "PredictiveEcology/SpaDES.core@development (>= 1.1.0.9000)"),
@@ -175,8 +175,8 @@ Init <- function(sim) {
   # # ! ----- EDIT BELOW ----- ! #
 
   padL <- if (P(sim)$version == 2 &&
-              grepl(paste("BlueRidge", "Edson", "FMANWT_", "LP_BC", "MillarWestern", "Mistik",
-                          "prov", "Sundre", "Vanderwell", "WestFraser", "WeyCo", sep = "|"),
+              grepl(paste("Edson", "FMANWT_", "LP_BC", "MillarWestern", "Mistik",
+                          "prov", "Vanderwell", "WestFraser", "WeyCo", sep = "|"),
                     outputPath(sim))) {
     if (grepl("provMB|provSK", outputPath(sim))) 4 else 3
   } else {
@@ -216,7 +216,15 @@ Init <- function(sim) {
 
   filesNeeded <- data.frame(file = filesExpected, exists = filesExpected %in% filesUserHas)
 
-  # stopifnot(length(mod$allouts2) == 2 * length(P(sim)$reps) * length(mod$analysesOutputsTimes))
+  ## proactively check for extra/unexpected files
+  possiblyOldFiles <- findOldSimFiles(outputPath(sim))
+  if (length(mod$allouts2) > 2 * length(P(sim)$reps) * length(mod$analysesOutputsTimes) ||
+      length(possiblyOldFiles)) {
+    stop(
+      "additional unexpected files found; ensure old simulation files removed before running:\n",
+      paste("  findOldSimFiles(", outputPath(sim), ", before = '2024-01-01') |> fs::file_delete()"),
+    )
+  }
   if (!all(filesNeeded$exists)) {
     missing <- filesNeeded[filesNeeded$exists == FALSE, ]$file
     stop(sum(!filesNeeded$exists), " simulation files appear to be missing:\n", paste(missing, collapse = "\n"))

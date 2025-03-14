@@ -150,35 +150,35 @@ postprocessLandWeb <- function(sim) {
   ag1 <- gsub(mod$layerName, pattern = "(.*)_.*_(.*)\\..*", replacement = "\\1_\\2") |>
     grep(paste(mod$analysesOutputsTimes, collapse = "|"), x = _, value = TRUE)
 
-  ## TODO: cache problems
-  ## Error in namesObj[allLower] <- paste0("abALLLOWER", namesObj[allLower]) :
-  ##   NAs are not allowed in subscripted assignments
-  withr::with_options(list(reproducible.useCache = FALSE), {
-    sim$ml <- mapAdd(
-      map = sim$ml,
-      layerName = names(ag1),
-      analysisGroup1 = ag1,
-      targetFile = asPath(mod$allouts2),
-      destinationPath = asPath(dirname(mod$allouts2)),
-      filename2 = NULL,
-      tsf = asPath(mod$sam),
-      vtm = asPath(mod$vtm),
-      outfile = file.path(outputPath(sim), "log", "LandWeb_summary_sam_vtm.log"),
-      overwrite = TRUE,
-      leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE,
-      .clInit = P(sim)$.clInit
-    )
-  })
-
-  fml <- list(
-    simFile("ml", outputPath(sim), ext = "qs"),
-    simFile("ml_leading", outputPath(sim), ext = "qs"),
-    simFile("ml_large", outputPath(sim), ext = "qs"),
-    simFile("ml_done", outputPath(sim), ext = "qs")
+  sim$ml <- mapAdd(
+    map = sim$ml,
+    layerName = names(ag1),
+    analysisGroup1 = ag1,
+    targetFile = asPath(mod$allouts2),
+    destinationPath = asPath(dirname(mod$allouts2)),
+    filename2 = NULL,
+    tsf = asPath(mod$sam),
+    vtm = asPath(mod$vtm),
+    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_sam_vtm.log"),
+    overwrite = TRUE,
+    leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE,
+    useCache = FALSE,
+    .clInit = P(sim)$.clInit
   )
 
-  qs::qsave(sim$ml, fml[[1]])
-  #sim$ml <- qs::qload(fml[[1]])
+  fml <- list(
+    ## NOTE: use rds; qs not working with map and will be superceded by qs2
+    simFile("ml", outputPath(sim), ext = "rds"),
+    simFile("ml_leading", outputPath(sim), ext = "rds"),
+    simFile("ml_large", outputPath(sim), ext = "rds"),
+    simFile("ml_done", outputPath(sim), ext = "rds")
+  )
+
+  ## NOTE: use rds; qs not working with map and will be superceded by qs2
+  # qs::qsave(sim$ml, fml[[1]])
+  # ml <- qs::qload(fml[[1]])
+  saveRDS(sim$ml, fml[[1]])
+  # ml <- readRDS(fml[[1]])
 
   ## next sets of analyses require more ram so don't use previously set num cpus
   prevNcores <- getOption("map.maxNumCores")
@@ -187,7 +187,7 @@ postprocessLandWeb <- function(sim) {
   sim$ml <- mapAddAnalysis(
     sim$ml,
     functionName = "LeadingVegTypeByAgeClass",
-    #purgeAnalyses = "LeadingVegTypeByAgeClass",
+    # purgeAnalyses = "LeadingVegTypeByAgeClass",
     ageClasses = P(sim)$ageClasses,
     ageClassCutOffs = P(sim)$ageClassCutOffs,
     sppEquivCol = "EN_generic_short",
@@ -196,25 +196,33 @@ postprocessLandWeb <- function(sim) {
     .clInit = P(sim)$.clInit
   )
 
-  qs::qsave(sim$ml, fml[[2]])
-  #sim$ml <- qs::qload(fml[[2]])
+  ## NOTE: use rds; qs not working with map and will be superceded by qs2
+  # qs::qsave(sim$ml, fml[[2]])
+  # ml <- qs::qload(fml[[2]])
+  saveRDS(sim$ml, fml[[2]])
+  # ml <- readRDS(fml[[2]])
 
-  sim$ml <- mapAddAnalysis(
-    sim$ml,
-    functionName = "LargePatches",
-    id = "1",
-    labelColumn = "shinyLabel",
-    #purgeAnalyses = "LargePatches",
-    ageClasses = P(sim)$ageClasses,
-    ageClassCutOffs = P(sim)$ageClassCutOffs,
-    sppEquivCol = "EN_generic_short",
-    sppEquiv = sim$sppEquiv,
-    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_LargePatches.log"),
-    .clInit = P(sim)$.clInit
-  )
+  withr::with_options(list(reproducible.useCache = FALSE), {
+    sim$ml <- mapAddAnalysis(
+      sim$ml,
+      functionName = "LargePatches",
+      id = "1",
+      labelColumn = "shinyLabel",
+      #purgeAnalyses = "LargePatches",
+      ageClasses = P(sim)$ageClasses,
+      ageClassCutOffs = P(sim)$ageClassCutOffs,
+      sppEquivCol = "EN_generic_short",
+      sppEquiv = sim$sppEquiv,
+      outfile = file.path(outputPath(sim), "log", "LandWeb_summary_LargePatches.log"),
+      .clInit = P(sim)$.clInit
+    )
+  })
 
-  qs::qsave(sim$ml, fml[[3]])
-  #sim$ml <- qs::qload(fml[[3]])
+  ## NOTE: use rds; qs not working with map and will be superceded by qs2
+  # qs::qsave(sim$ml, fml[[3]])
+  # ml <- qs::qload(fml[[3]])
+  saveRDS(sim$ml, fml[[3]])
+  # ml <- readRDS(fml[[3]])
 
   options(map.maxNumCores = prevNcores)
 
@@ -234,7 +242,7 @@ postprocessLandWeb <- function(sim) {
     map = sim$ml,
     functionName = "rbindlistAG",
     postHocAnalysisGroups = "analysisGroupReportingPolygon",
-    #purgeAnalyses = "rbindlistAG",
+    # purgeAnalyses = "rbindlistAG",
     postHocAnalyses = "all",
     outfile = file.path(outputPath(sim), "log", "LandWeb_summary_rbindlistAG.log")
   )
@@ -244,7 +252,7 @@ postprocessLandWeb <- function(sim) {
     functionName = "runBoxPlotsVegCover",
     postHocAnalysisGroups = "analysisGroupReportingPolygon",
     postHocAnalyses = "rbindlistAG",
-    #purgeAnalyses = "runBoxPlotsVegCover",
+    # purgeAnalyses = "runBoxPlotsVegCover",
     dPath = file.path(outputPath(sim), "boxplots"),
     outfile = file.path(outputPath(sim), "log", "LandWeb_summary_runBoxPlotsVegCover.log")
   )
@@ -254,7 +262,7 @@ postprocessLandWeb <- function(sim) {
     functionName = "runHistsVegCover",
     postHocAnalysisGroups = "analysisGroupReportingPolygon",
     postHocAnalyses = "rbindlistAG",
-    #purgeAnalyses = "runHistsVegCover",
+    # purgeAnalyses = "runHistsVegCover",
     dPath = file.path(outputPath(sim), "histograms"),
     outfile = file.path(outputPath(sim), "log", "LandWeb_summary_runHistsVegCover.log")
   )
@@ -264,13 +272,16 @@ postprocessLandWeb <- function(sim) {
     functionName = "runHistsLargePatches",
     postHocAnalysisGroups = "analysisGroupReportingPolygon",
     postHocAnalyses = "rbindlistAG",
-    #purgeAnalyses = "runHistsLargePatches",
+    # purgeAnalyses = "runHistsLargePatches",
     dPath = file.path(outputPath(sim), "histograms"),
     outfile = file.path(outputPath(sim), "log", "LandWeb_summary_runHistsLargePatches.log")
   )
 
-  qs::qsave(sim$ml, fml[[4]])
-  #ml <- qs::qload(fml[[4]])
+  ## NOTE: use rds; qs not working with map and will be superceded by qs2
+  # qs::qsave(sim$ml, fml[[4]])
+  # ml <- qs::qload(fml[[4]])
+  saveRDS(sim$ml, fml[[4]])
+  # ml <- readRDS(fml[[4]])
 
   ## files to be uploaded --------------------------------------------------------------------------
 
