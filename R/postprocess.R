@@ -1,14 +1,16 @@
 postprocessLandWeb <- function(sim) {
   .tilePath <- getOption("map.tilePath", file.path(outputPath(sim), "tiles"))
 
-  vtmCC <- Cache(vegTypeMapGenerator,
-                 x = sim$speciesLayers,
-                 vegLeadingProportion = P(sim)$vegLeadingProportion,
-                 mixedType = 2,
-                 sppEquiv = sim$sppEquiv,
-                 sppEquivCol = P(sim)$sppEquivCol,
-                 colors = sim$sppColorVect,
-                 doAssertion = FALSE)
+  vtmCC <- Cache(
+    vegTypeMapGenerator,
+    x = sim$speciesLayers,
+    vegLeadingProportion = P(sim)$vegLeadingProportion,
+    mixedType = 2,
+    sppEquiv = sim$sppEquiv,
+    sppEquivCol = P(sim)$sppEquivCol,
+    colors = sim$sppColorVect,
+    doAssertion = FALSE
+  )
 
   fvtm0 <- file.path(outputPath(sim), "CurrentConditionVTM.grd")
   raster::writeRaster(vtmCC, fvtm0, datatype = "INT1U", overwrite = TRUE)
@@ -35,7 +37,7 @@ postprocessLandWeb <- function(sim) {
     vtm = asPath(fvtm0),
     CC = TRUE,
     overwrite = TRUE,
-    #useCache = "overwrite",
+    # useCache = "overwrite",
     leaflet = if (isTRUE(P(sim)$.makeTiles)) .tilePath else FALSE
   )
 
