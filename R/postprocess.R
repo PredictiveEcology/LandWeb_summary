@@ -169,20 +169,20 @@ postprocessLandWeb <- function(sim) {
   )
 
   fml <- list(
-    ## NOTE: use rds; qs not working with map and will be superceded by qs2
+    ## NOTE: use rds; qs not working with map and will be superseded by qs2
     simFile("ml", outputPath(sim), ext = "rds"),
     simFile("ml_leading", outputPath(sim), ext = "rds"),
     simFile("ml_large", outputPath(sim), ext = "rds"),
     simFile("ml_done", outputPath(sim), ext = "rds")
   )
 
-  ## NOTE: use rds; qs not working with map and will be superceded by qs2
+  ## NOTE: use rds; qs not working with map and will be superseded by qs2
   # qs::qsave(sim$ml, fml[[1]])
   # ml <- qs::qload(fml[[1]])
   saveRDS(sim$ml, fml[[1]])
   # ml <- readRDS(fml[[1]])
 
-  ## next sets of analyses require more ram so don't use previously set num cpus
+  ## next sets of analyses require more RAM so don't use previously set num cpus
   prevNcores <- getOption("map.maxNumCores")
   options(
     map.maxNumCores = pemisc::optimalClusterNum(
@@ -203,11 +203,19 @@ postprocessLandWeb <- function(sim) {
     .clInit = P(sim)$.clInit
   )
 
-  ## NOTE: use rds; qs not working with map and will be superceded by qs2
+  ## NOTE: use rds; qs not working with map and will be superseded by qs2
   # qs::qsave(sim$ml, fml[[2]])
   # ml <- qs::qload(fml[[2]])
   saveRDS(sim$ml, fml[[2]])
   # ml <- readRDS(fml[[2]])
+
+  ## next sets of analyses require more RAM so don't use previously set num cpus
+  options(
+    map.maxNumCores = pemisc::optimalClusterNum(
+      memRequiredMB = 60000,
+      maxNumClusters =  parallelly::availableCores(constraints = "connections", logical = FALSE)
+    )
+  )
 
   withr::with_options(list(reproducible.useCache = FALSE), {
     sim$ml <- mapAddAnalysis(
@@ -215,7 +223,7 @@ postprocessLandWeb <- function(sim) {
       functionName = "LargePatches",
       id = "1",
       labelColumn = "shinyLabel",
-      #purgeAnalyses = "LargePatches",
+      # purgeAnalyses = "LargePatches",
       ageClasses = P(sim)$ageClasses,
       ageClassCutOffs = P(sim)$ageClassCutOffs,
       sppEquivCol = "EN_generic_short",
@@ -225,7 +233,7 @@ postprocessLandWeb <- function(sim) {
     )
   })
 
-  ## NOTE: use rds; qs not working with map and will be superceded by qs2
+  ## NOTE: use rds; qs not working with map and will be superseded by qs2
   # qs::qsave(sim$ml, fml[[3]])
   # ml <- qs::qload(fml[[3]])
   saveRDS(sim$ml, fml[[3]])
@@ -285,7 +293,7 @@ postprocessLandWeb <- function(sim) {
     outfile = file.path(outputPath(sim), "log", "LandWeb_summary_runHistsLargePatches.log")
   )
 
-  ## NOTE: use rds; qs not working with map and will be superceded by qs2
+  ## NOTE: use rds; qs not working with map and will be superseded by qs2
   # qs::qsave(sim$ml, fml[[4]])
   # ml <- qs::qload(fml[[4]])
   saveRDS(sim$ml, fml[[4]])
