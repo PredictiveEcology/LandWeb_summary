@@ -15,7 +15,7 @@ defineModule(sim, list(
   citation = list("citation.bib"),
   documentation = list("README.md", "LandWeb_summary.Rmd"), ## README generated from module Rmd
   reqdPkgs = list("animation", "data.table", "fs", "future", "future.callr", "ggplot2", "googledrive",
-                  "purrr", "qs", "raster", "sp", ## TODO: qs will be superceded by qs2
+                  "parallelly", "purrr", "qs", "raster", "sp", ## TODO: qs will be superceded by qs2
                   "achubaty/amc@development",
                   "PredictiveEcology/LandR@development (>= 1.1.0.9015)",
                   "PredictiveEcology/LandWebUtils@development (>= 1.0.3)",

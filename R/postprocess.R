@@ -184,7 +184,12 @@ postprocessLandWeb <- function(sim) {
 
   ## next sets of analyses require more ram so don't use previously set num cpus
   prevNcores <- getOption("map.maxNumCores")
-  options(map.maxNumCores = pemisc::optimalClusterNum(60000, parallel::detectCores() / 2))
+  options(
+    map.maxNumCores = pemisc::optimalClusterNum(
+      memRequiredMB = 60000,
+      maxNumClusters =  parallelly::availableCores(constraints = "connections", logical = FALSE)
+    )
+  )
 
   sim$ml <- mapAddAnalysis(
     sim$ml,
@@ -230,8 +235,9 @@ postprocessLandWeb <- function(sim) {
 
   histDirOld <- file.path(outputPath(sim), "hists") |> normPath()
   histDirNew <- file.path(outputPath(sim), "histograms") |> normPath()
-  if (dir.exists(histDirOld))
+  if (dir.exists(histDirOld)) {
     file.rename(from = histDirOld, to = histDirNew)
+  }
 
   ## 'archive' previous largePatches results following bugfix (2021-05-05)
   histDirArchived <- paste0("histograms_archived_", format(Sys.Date(), "%Y-%m-%d"))
