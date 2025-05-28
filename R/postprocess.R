@@ -186,7 +186,7 @@ postprocessLandWeb <- function(sim) {
   prevNcores <- getOption("map.maxNumCores")
   options(
     map.maxNumCores = pemisc::optimalClusterNum(
-      memRequiredMB = 60000,
+      memRequiredMB = 42000,
       maxNumClusters =  parallelly::availableCores(constraints = "connections", logical = FALSE)
     )
   )
