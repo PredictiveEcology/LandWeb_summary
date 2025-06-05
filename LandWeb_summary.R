@@ -9,7 +9,7 @@ defineModule(sim, list(
     person(c("Alex", "M."), "Chubaty", email = "achubaty@for-cast.ca", role = c("aut", "cre"))
   ),
   childModules = character(0),
-  version = list(LandWeb_summary = "1.0.3"),
+  version = list(LandWeb_summary = "1.0.4"),
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list("citation.bib"),
@@ -144,9 +144,22 @@ doEvent.LandWeb_summary = function(sim, eventTime, eventType) {
     },
     postprocess = {
       # ! ----- EDIT BELOW ----- ! #
-      # do stuff for this event
+      ## each step separated here to make it easier to run different steps separately
+      sim <- postprocessSetup(sim)          ## needs to be run
+      sim <- postprocessLeading(sim)
+      sim <- postprocessLargePatches(sim)
+      sim <- postprocessPostHocFigures(sim) ## needs to be run
 
-      sim <- postprocessLandWeb(sim)
+      ## files to be uploaded --------------------------------------------------------------------------
+
+      ## TODO: archives (zip) instead of indiv files
+      # files2upload <- c(
+      #   sim$ml@metadata$sam,
+      #   sim$ml@metadata$vtm,
+      #   list.files(file.path(outputPath(sim), "boxplots"), recursive = TRUE),
+      #   list.files(file.path(outputPath(sim), "histograms"), recursive = TRUE)
+      # )
+      # mod$files2upload <- c(mod$files2upload, files2upload)
 
       # ! ----- STOP EDITING ----- ! #
     },

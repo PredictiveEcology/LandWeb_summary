@@ -1,4 +1,4 @@
-postprocessLandWeb <- function(sim) {
+postprocessSetup <- function(sim) {
   .tilePath <- getOption("map.tilePath", file.path(outputPath(sim), "tiles"))
 
   vtmCC <- Cache(
@@ -168,7 +168,7 @@ postprocessLandWeb <- function(sim) {
     .clInit = P(sim)$.clInit
   )
 
-  fml <- list(
+  mod$fml <- list(
     ## NOTE: use rds; qs not working with map and will be superseded by qs2
     simFile("ml", outputPath(sim), ext = "rds"),
     simFile("ml_leading", outputPath(sim), ext = "rds"),
@@ -177,47 +177,58 @@ postprocessLandWeb <- function(sim) {
   )
 
   ## NOTE: use rds; qs not working with map and will be superseded by qs2
-  # qs::qsave(sim$ml, fml[[1]])
-  # ml <- qs::qload(fml[[1]])
-  saveRDS(sim$ml, fml[[1]])
-  # ml <- readRDS(fml[[1]])
+  # qs::qsave(sim$ml, mod$fml[[1]])
+  # ml <- qs::qload(mod$fml[[1]])
+  saveRDS(sim$ml, mod$fml[[1]])
+  # ml <- readRDS(mod$fml[[1]])
 
-  ## next sets of analyses require more RAM so don't use previously set num cpus
-  prevNcores <- getOption("map.maxNumCores")
-  options(
-    map.maxNumCores = pemisc::optimalClusterNum(
-      memRequiredMB = 60000,
-      maxNumClusters =  parallelly::availableCores(constraints = "connections", logical = FALSE)
-    )
-  )
+  return(invisible(sim))
+}
 
-  sim$ml <- mapAddAnalysis(
-    sim$ml,
-    functionName = "LeadingVegTypeByAgeClass",
-    # purgeAnalyses = "LeadingVegTypeByAgeClass",
-    ageClasses = P(sim)$ageClasses,
-    ageClassCutOffs = P(sim)$ageClassCutOffs,
-    sppEquivCol = "EN_generic_short",
-    sppEquiv = sim$sppEquiv,
-    outfile = file.path(outputPath(sim), "log", "LandWeb_summary_LeadingVegTypeByAgeClass.log"),
-    .clInit = P(sim)$.clInit
-  )
+postprocessLeading <- function(sim) {
+  ## next sets of analyses require more RAM so don't use previously set num cpus;
+  withr::with_options(
+    new = list(
+      map.maxNumCores = pemisc::optimalClusterNum(
+        memRequiredMB = 60000,
+        maxNumClusters =  parallelly::availableCores(constraints = "connections", logical = FALSE)
+      )
+    ),
+    code = {
+      sim$ml <- mapAddAnalysis(
+        sim$ml,
+        functionName = "LeadingVegTypeByAgeClass",
+        # purgeAnalyses = "LeadingVegTypeByAgeClass",
+        ageClasses = P(sim)$ageClasses,
+        ageClassCutOffs = P(sim)$ageClassCutOffs,
+        sppEquivCol = "EN_generic_short",
+        sppEquiv = sim$sppEquiv,
+        outfile = file.path(outputPath(sim), "log", "LandWeb_summary_LeadingVegTypeByAgeClass.log"),
+        .clInit = P(sim)$.clInit
+      )
+  })
 
   ## NOTE: use rds; qs not working with map and will be superseded by qs2
-  # qs::qsave(sim$ml, fml[[2]])
-  # ml <- qs::qload(fml[[2]])
-  saveRDS(sim$ml, fml[[2]])
-  # ml <- readRDS(fml[[2]])
+  # qs::qsave(sim$ml, mod$fml[[2]])
+  # ml <- qs::qload(mod$fml[[2]])
+  saveRDS(sim$ml, mod$fml[[2]])
+  # ml <- readRDS(mod$fml[[2]])
 
-  ## next sets of analyses require more RAM so don't use previously set num cpus
-  options(
-    map.maxNumCores = pemisc::optimalClusterNum(
-      memRequiredMB = 60000,
-      maxNumClusters =  parallelly::availableCores(constraints = "connections", logical = FALSE)
-    )
-  )
+  return(invisible(sim))
+}
 
-  withr::with_options(list(reproducible.useCache = FALSE), {
+postprocessLargePatches <- function(sim) {
+  ## next sets of analyses require more RAM so don't use previously set num cpus;
+  ## several issues using cache here, so disable for now;
+  withr::with_options(
+    new = list(
+      map.maxNumCores = pemisc::optimalClusterNum(
+        memRequiredMB = 60000,
+        maxNumClusters =  parallelly::availableCores(constraints = "connections", logical = FALSE)
+      ),
+      reproducible.useCache = FALSE
+    ),
+    code = {
     sim$ml <- mapAddAnalysis(
       sim$ml,
       functionName = "LargePatches",
@@ -234,13 +245,16 @@ postprocessLandWeb <- function(sim) {
   })
 
   ## NOTE: use rds; qs not working with map and will be superseded by qs2
-  # qs::qsave(sim$ml, fml[[3]])
-  # ml <- qs::qload(fml[[3]])
-  saveRDS(sim$ml, fml[[3]])
-  # ml <- readRDS(fml[[3]])
+  # qs::qsave(sim$ml, mod$fml[[3]])
+  # ml <- qs::qload(mod$fml[[3]])
+  saveRDS(sim$ml, mod$fml[[3]])
+  # ml <- readRDS(mod$fml[[3]])
 
-  options(map.maxNumCores = prevNcores)
+  return(invisible(sim))
+}
 
+postprocessPostHocFigures <- function(sim) {
+  ## some older runs may have used dir `hists/`; now using `histograms/`
   histDirOld <- file.path(outputPath(sim), "hists") |> normPath()
   histDirNew <- file.path(outputPath(sim), "histograms") |> normPath()
   if (dir.exists(histDirOld)) {
@@ -294,21 +308,10 @@ postprocessLandWeb <- function(sim) {
   )
 
   ## NOTE: use rds; qs not working with map and will be superseded by qs2
-  # qs::qsave(sim$ml, fml[[4]])
-  # ml <- qs::qload(fml[[4]])
-  saveRDS(sim$ml, fml[[4]])
-  # ml <- readRDS(fml[[4]])
-
-  ## files to be uploaded --------------------------------------------------------------------------
-
-  ## TODO: archives (zip) instead of indiv files
-  # files2upload <- c(
-  #   sim$ml@metadata$sam,
-  #   sim$ml@metadata$vtm,
-  #   list.files(file.path(outputPath(sim), "boxplots"), recursive = TRUE),
-  #   list.files(file.path(outputPath(sim), "histograms"), recursive = TRUE)
-  # )
-  # mod$files2upload <- c(mod$files2upload, files2upload)
+  # qs::qsave(sim$ml, mod$fml[[4]])
+  # ml <- qs::qload(mod$fml[[4]])
+  saveRDS(sim$ml, mod$fml[[4]])
+  # ml <- readRDS(mod$fml[[4]])
 
   return(invisible(sim))
 }
