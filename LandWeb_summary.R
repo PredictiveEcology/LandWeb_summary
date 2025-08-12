@@ -73,16 +73,14 @@ defineModule(sim, list(
     defineParameter(".useCache", "character", c(".inputObjects", "animation", "postprocess"), NA, NA,
                     "Names of events to be cached."),
     defineParameter(".useParallel", "logical", getOption("map.useParallel", FALSE), NA, NA,
-                    desc = paste("Logical. If `TRUE`, and there is more than one calculation to do at any stage,",
-                                 "it will create and use a parallel cluster via `makeOptimalCluster()`."))
+                    paste("Logical. If `TRUE`, and there is more than one calculation to do at any stage,",
+                          "it will create and use a parallel cluster via `makeOptimalCluster()`."))
   ),
   inputObjects = bindrows(
     expectsInput("flammableMap", "Raster",
                  desc = paste("A raster layer, with 0, 1 and NA, where 1 indicates areas",
                               "that are flammable, 0 not flammable (e.g., lakes)",
                               "and NA not applicable (e.g., masked)")),
-    expectsInput("ml", "map",
-                 desc = "map list object from LandWeb_preamble"),
     expectsInput("speciesLayers", "RasterStack",
                  desc = "initial percent cover raster layers used for simulation."),
     expectsInput("sppColorVect", "character",
@@ -93,7 +91,7 @@ defineModule(sim, list(
                  desc = "table of species equivalencies. See `LandR::sppEquivalencies_CA`.")
   ),
   outputObjects = bindrows(
-    createsOutput("ml", "map", "map list object"),
+    createsOutput("reportingPolygons", "list", "reporting polygons to use for postprocessing")
   )
 ))
 
@@ -265,8 +263,126 @@ Init <- function(sim) {
   return(invisible(sim))
 }
 
+makeReportingPolygons <- function(sim) {
+  ## Provincial Boundaries
+  canProvs <- geodata::gadm(country = "CAN", level = 1, path = dPath) |>
+    sf::st_as_sf()
+
+  ml <- mapAdd(sim$canProvs, map = ml, layerName = "Provincial Boundaries",
+               useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+               columnNameForLabels = "NAME_1", isStudyArea = FALSE, filename2 = NULL)
+
+
+  ## Updated FMA boundaries
+  ml <- mapAdd(map = ml, layerName = "FMA Boundaries Updated",
+               useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+               url = "https://drive.google.com/file/d/1yCbq8rcRXCfUKHJGg-Fzlnrjl48LJfCO", ## 2024-08 added C5
+               columnNameForLabels = "Name", isStudyArea = FALSE, filename2 = NULL)
+
+  ## AB FMU boundaries
+  ## TODO: only add if studyAreaReporting in AB
+  ml <- mapAdd(map = ml, layerName = "AB FMU Boundaries",
+               useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+               url = "https://drive.google.com/open?id=1OH3b5pwjumm1ToytDBDI6jthVe2pp0tS", # 2020-06
+               columnNameForLabels = "FMU_NAME", isStudyArea = FALSE, filename2 = NULL)
+
+  ### Rename some polygons:
+  ###   - DMI is now Mercer (MPR)
+  ids <- grep("Daishowa-Marubeni International Ltd", ml[["FMA Boundaries Updated"]][["Name"]])
+  newNames <- c("Mercer Peace River Pulp Ltd. (East)", "Mercer Peace River Pulp Ltd. (West)")
+  ml[["FMA Boundaries Updated"]][["Name"]][ids] <- newNames
+  ml[["FMA Boundaries Updated"]][["shinyLabel"]][ids] <- newNames
+
+  ## National ecozones
+  ml <- mapAdd(map = ml, layerName = "National Ecozones",
+               useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+               url = "https://sis.agr.gc.ca/cansis/nsdb/ecostrat/zone/ecozone_shp.zip",
+               columnNameForLabels = "REGION_NAM", isStudyArea = FALSE, filename2 = NULL)
+  ml[["National Ecozones"]][["Name"]] <- tools::toTitleCase(tolower(ml[["National Ecozones"]][["ZONE_NAME"]]))
+
+  ## National ecoregions
+  ml <- mapAdd(map = ml, layerName = "National Ecoregions",
+               useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+               url = "https://sis.agr.gc.ca/cansis/nsdb/ecostrat/region/ecoregion_shp.zip",
+               columnNameForLabels = "REGION_NAM", isStudyArea = FALSE, filename2 = NULL)
+  ml[["National Ecoregions"]][["Name"]] <- ml[["National Ecoregions"]][["REGION_NAM"]]
+
+  ## Alberta Natural Subregions (ANSRs)
+  ## TODO: only add if studyAreaReporting in AB
+  ml <- mapAdd(map = ml, layerName = "Alberta Natural Subregions",
+               useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+               url = "https://drive.google.com/file/d/1hW6zy0CpUBdk-K2IAjzW4INjVl1J4aLJ",
+               columnNameForLabels = "Name", isStudyArea = FALSE, filename2 = NULL)
+
+  ## BC biogeoclimatic zones
+  ## TODO: only add if studyAreaReporting in BC
+  ml <- mapAdd(map = ml, layerName = "BC Biogeoclimatic zones",
+               useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+               url = "https://drive.google.com/file/d/1NS15Gd7dHEhvPOy-Ol_LBtf-4Ch6mPnS",
+               columnNameForLabels = "ZONE_NAME", isStudyArea = FALSE, filename2 = NULL)
+  ml[["BC Biogeoclimatic zones"]][["Name"]] <- ml[["BC Biogeoclimatic zones"]][["ZONE_NAME"]]
+
+  ## NWT ecoregions
+  ## TODO: only add if studyAreaReporting in NWT
+  ml <- mapAdd(map = ml, layerName = "Northwest Territories Ecoregions",
+               useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+               url = "https://drive.google.com/file/d/1iRAQfARkmS6-XVHFnTkB-iltzMNPAczC",
+               columnNameForLabels = "ECO4_NAM_1", isStudyArea = FALSE, filename2 = NULL)
+  ml[["Northwest Territories Ecoregions"]][["Name"]] <- ml[["Northwest Territories Ecoregions"]][["ECO4_NAM_1"]]
+
+  ## Caribou Ranges
+  # ml <- mapAdd(map = ml, layerName = "Boreal Caribou Ranges",
+  #              useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+  #              url = "https://drive.google.com/file/d/1PYLou8J1wcrme7Z2tx1wtA4GvaWnU1Jy",
+  #              columnNameForLabels = "Name", isStudyArea = FALSE, filename2 = NULL)
+  # ml <- mapAdd(map = ml, layerName = "BC Caribou Ranges",
+  #              useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+  #              url = "https://drive.google.com/file/d/1uqEVID74y4enPMee2w3axBcR1agw_kMT",
+  #              columnNameForLabels = "HERD_NAME", isStudyArea = FALSE, filename2 = NULL) ## untested
+  # ml <- mapAdd(map = ml, layerName = "AB Caribou Ranges",
+  #              useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+  #              url = "https://extranet.gov.ab.ca/srd/geodiscover/srd_pub/LAT/FWDSensitivity/CaribouRange.zip",
+  #              columnNameForLabels = "SUBUNIT", isStudyArea = FALSE, filename2 = NULL) ## untested
+  ml <- mapAdd(map = ml, layerName = "SK Caribou Ranges",
+               useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+               url = "https://drive.google.com/file/d/1LiizDyXOfJPQ76FQM8SQ1_kYG9hJUDdK",
+               columnNameForLabels = "RGEUNIT", isStudyArea = FALSE, filename2 = NULL)
+  ml[["SK Caribou Ranges"]][["Name"]] <- ml[["SK Caribou Ranges"]][["RGEUNIT"]]
+
+  if (grepl("provMB", P(sim)$.studyAreaName)) {
+    ## TODO: .zipx file; needs 'manual' extract 1st time
+    ml <- mapAdd(map = ml, layerName = "MB Caribou Ranges",
+                 useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+                 url = "https://drive.google.com/file/d/1Y_Qi3twoU3fHaNgMzF5QEl1CosGmGyha/",
+                 targetFile = "Boreal_caribou_MUs_MB_2015.shp", alsoExtract = "similar",
+                 columnNameForLabels = "RANGE_NAME", isStudyArea = FALSE, filename2 = NULL)
+    ml[["MB Caribou Ranges"]][["Name"]] <- ml[["MB Caribou Ranges"]][["RANGE_NAME"]]
+  }
+
+  ml <- mapAdd(map = ml, layerName = "LandWeb Caribou Ranges",
+               useSAcrs = TRUE, poly = TRUE, overwrite = TRUE,
+               url = "https://drive.google.com/file/d/1mrsxIJfdP-XxEZkO6vs2J6lYbGry67A2",
+               columnNameForLabels = "Name", isStudyArea = FALSE, filename2 = NULL)
+
+
+
+
+  plotFMA(
+    studyAreaReporting,
+    provs = LandWebUtils::studyAreaProv(studyAreaReporting),
+    caribou = sar.caribou,
+    xsr =  sim$studyArea,
+    title = P(sim)$.studyAreaName,
+    png = file.path(dataDir, glue::glue("{P(sim)$.studyAreaName}.png"))
+  )
+
+
+  # ! ----- STOP EDITING ----- ! #
+  return(invisible(sim))
+}
+
 .inputObjects <- function(sim) {
-  dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
+  dPath <- asPath(inputPath(sim), 1)
   message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
   # ! ----- EDIT BELOW ----- ! #
